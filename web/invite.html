@@ -258,12 +258,12 @@ const setAlert = (id, text) => { $(id).textContent = text; };
 const INVITE = {
   couple: ['Ruth', 'Elvis'],
   photo: '',                    // add the couple's photo URL here when it is ready
-  hosts: 'Together with their families, Ruth and Elvis invite you to celebrate the beginning of their marriage.',
+  hosts: 'Together with their parents, Joseph Nzyoki and David Kiamba, Ruth and Elvis invite you to celebrate the beginning of their marriage.',
   date: '2026-11-14',           // wedding day (YYYY-MM-DD)
-  time: '11:00',                // TO CONFIRM: start time (24-hour format)
+  time: '10:00 AM',             // start time
   venue: 'Ruiru Prisons Training Grounds, Nairobi',
   colour: 'Sage green & dust pink',
-  rsvpBy: '2026-11-07'          // TO CONFIRM: RSVP deadline (YYYY-MM-DD)
+  rsvpBy: '2026-11-07'          // RSVP deadline (YYYY-MM-DD)
 };
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const initials = INVITE.couple.map(n => (n.replace(/[\[\]]/g, '').trim()[0] || '')).join('') || '\u2661';
@@ -271,7 +271,8 @@ const initials = INVITE.couple.map(n => (n.replace(/[\[\]]/g, '').trim()[0] || '
 function renderInvite() {
   const [y, m, d] = INVITE.date.split('-').map(Number);
   const when = new Date(y, m - 1, d);
-  const [hh, mm] = INVITE.time.split(':').map(Number);
+  const cleanTime = INVITE.time.replace(/[^0-9:]/g, '') || '10:00';
+  const [hh, mm] = cleanTime.split(':').map(Number);
 
   // Corner photo, or initials until a photo is added
   const av = $('avatar');

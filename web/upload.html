@@ -265,8 +265,8 @@ function toast(text, bad = false) {
 }
 
 // Join event to obtain a valid guest token
-async function getGuestToken() {
-  if (guestToken) return guestToken;
+async function getGuestToken(force = false) {
+  if (guestToken && !force) return guestToken;
   try {
     const res = await fetch(`${API_BASE}/api/join`, {
       method: 'POST',
@@ -285,15 +285,28 @@ async function getGuestToken() {
   return null;
 }
 
+// Wrapper that automatically recovers and retries if session expires
+async function authFetch(url, options = {}) {
+  let token = await getGuestToken();
+  if (!token) return null;
+  const headers = new Headers(options.headers || {});
+  headers.set('Authorization', `Bearer ${token}`);
+  let res = await fetch(url, { ...options, headers });
+  if (res && res.status === 401) {
+    token = await getGuestToken(true);
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+      res = await fetch(url, { ...options, headers });
+    }
+  }
+  return res;
+}
+
 // Check current quota usage
 async function refreshQuota() {
-  const token = await getGuestToken();
-  if (!token) return;
   try {
-    const res = await fetch(`${API_BASE}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
+    const res = await authFetch(`${API_BASE}/api/me`);
+    if (res && res.ok) {
       const q = await res.json();
       myPhotosCount = q.photos.used;
       myMsgsCount = q.messages.used;
@@ -446,14 +459,9 @@ function buildNote(m) {
 }
 
 async function toggleLike(id, adding) {
-  const token = await getGuestToken();
-  if (!token) return toast('Please join with the event code first.', true);
   try {
-    const res = await fetch(`${API_BASE}/api/photos/${id}/like`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
+    const res = await authFetch(`${API_BASE}/api/photos/${id}/like`, { method: 'POST' });
+    if (res && res.ok) {
       const data = await res.json();
       if (data.liked) myLikedPhotos.add(id);
       else myLikedPhotos.delete(id);
@@ -468,14 +476,9 @@ async function toggleLike(id, adding) {
 }
 
 async function removePhoto(id) {
-  const token = await getGuestToken();
-  if (!token) return;
   try {
-    const res = await fetch(`${API_BASE}/api/photos/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
+    const res = await authFetch(`${API_BASE}/api/photos/${id}`, { method: 'DELETE' });
+    if (res && res.ok) {
       myUploadedPhotos.delete(id);
       store.set('mf_my_photos', [...myUploadedPhotos]);
       photos = photos.filter(p => p.id !== id);
@@ -491,9 +494,6 @@ async function removePhoto(id) {
 async function addFiles(files) {
   const images = files.filter(f => f.type.startsWith('image/'));
   if (!images.length) return toast('Please choose image files.', true);
-
-  const token = await getGuestToken();
-  if (!token) return toast('Could not connect to event. Check connection.', true);
 
   const left = MAX_PHOTOS - myPhotosCount;
   if (left <= 0) return toast('You have used all 10 photos.', true);
@@ -514,18 +514,17 @@ async function addFiles(files) {
       fd.append('photo', blob, 'moment.jpg');
       if (author) fd.append('author', author);
 
-      const res = await fetch(`${API_BASE}/api/photos`, {
+      const res = await authFetch(`${API_BASE}/api/photos`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: fd
       });
-      if (res.ok) {
+      if (res && res.ok) {
         const item = await res.json();
         myUploadedPhotos.add(item.id);
         store.set('mf_my_photos', [...myUploadedPhotos]);
         uploadedCount++;
       } else {
-        const err = await res.json().catch(() => ({}));
+        const err = res ? await res.json().catch(() => ({})) : {};
         toast(err.error || 'Upload error.', true);
       }
     } catch {
@@ -590,23 +589,19 @@ $('postBtn').onclick = async () => {
   if (!text) return toast('Please write a note first.', true);
   if (text.length > MAX_CHARS) return toast(`Keep it under ${MAX_CHARS} characters.`, true);
 
-  const token = await getGuestToken();
-  if (!token) return toast('Could not connect to event.', true);
-
   const btn = $('postBtn');
   btn.disabled = true;
   btn.textContent = 'Posting...';
 
   try {
-    const res = await fetch(`${API_BASE}/api/messages`, {
+    const res = await authFetch(`${API_BASE}/api/messages`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ text, author })
     });
-    if (res.ok) {
+    if (res && res.ok) {
       $('msgText').value = '';
       $('msgAuthor').value = '';
       $('charCount').textContent = `0 / ${MAX_CHARS}`;
@@ -615,7 +610,7 @@ $('postBtn').onclick = async () => {
       await refreshQuota();
       await fetchWallItems();
     } else {
-      const err = await res.json().catch(() => ({}));
+      const err = res ? await res.json().catch(() => ({})) : {};
       toast(err.error || 'Could not post message.', true);
     }
   } catch {
