@@ -2,11 +2,12 @@
 node_modules/
 backend/node_modules/
 
-# Environment variables
+# Environment variables — NEVER commit these
 .env
 backend/.env
 *.env
 *.env.local
+*.env.production
 
 # SQLite local database files
 *.db

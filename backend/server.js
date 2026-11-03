@@ -6,6 +6,26 @@ import { fileURLToPath } from 'node:url';
 import { QUOTES } from './quotes.js';
 import * as db from './db.js';
 
+// Security headers middleware
+function securityHeaders(req, res, next) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '0'); // modern browsers ignore; CSP is the real guard
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Allow uploads from Supabase storage and same origin; block everything else
+  const supabaseOrigin = process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).origin : '';
+  const imgSrc = supabaseOrigin ? `'self' ${supabaseOrigin} blob: data:` : "'self' blob: data:";
+  res.setHeader(
+    'Content-Security-Policy',
+    `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src ${imgSrc}; connect-src 'self' ${supabaseOrigin}; frame-ancestors 'none';`
+  );
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  }
+  next();
+}
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 // Load .env (Node 20+)
@@ -25,6 +45,14 @@ const ADMIN_SESSION_HOURS = 8;
 const newToken = () => crypto.randomBytes(24).toString('base64url');
 const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex');
 const now = () => Date.now();
+
+// Strip HTML tags and dangerous characters from user text
+function sanitize(str, maxLen = 500) {
+  return String(str ?? '')
+    .replace(/[<>"'`]/g, c => ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]))
+    .trim()
+    .slice(0, maxLen);
+}
 
 function safeEqual(a, b) {
   const hashA = crypto.createHash('sha256').update(String(a ?? '')).digest();
@@ -135,9 +163,23 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '64kb' }));
 
-// CORS
+// Security headers (applied before CORS so headers are always set)
+app.use(securityHeaders);
+
+// CORS — restrict to the deployed origin in production
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '';
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin || '';
+  const allowed = ALLOWED_ORIGIN
+    ? origin === ALLOWED_ORIGIN
+    : true; // permissive in local dev when not set
+  if (allowed && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  } else if (!ALLOWED_ORIGIN) {
+    // local dev fallback — allow all
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -194,7 +236,7 @@ app.post('/api/photos', requireGuest, upload.single('photo'), async (req, res) =
   const block = await uploadBlock();
   if (block) return res.status(403).json({ error: block });
 
-  const author = String(req.body?.author ?? '').trim().slice(0, LIMITS.authorChars);
+  const author = sanitize(req.body?.author ?? '', LIMITS.authorChars);
   const status = await initialStatus();
 
   try {
@@ -238,8 +280,8 @@ app.get('/api/messages', async (_req, res) => {
 app.post('/api/messages', requireGuest, async (req, res) => {
   const block = await uploadBlock();
   if (block) return res.status(403).json({ error: block });
-  const text = String(req.body?.text ?? '').trim();
-  const author = String(req.body?.author ?? '').trim().slice(0, LIMITS.authorChars);
+  const text = sanitize(req.body?.text ?? '', LIMITS.chars);
+  const author = sanitize(req.body?.author ?? '', LIMITS.authorChars);
   if (!text) return res.status(400).json({ error: 'Please write a message first.' });
   if ([...text].length > LIMITS.chars) {
     return res.status(400).json({ error: `Keep it under ${LIMITS.chars} characters.` });
@@ -262,11 +304,11 @@ app.post('/api/messages', requireGuest, async (req, res) => {
 });
 
 // RSVP
-app.post('/api/rsvp', async (req, res) => {
-  const name = String(req.body?.name ?? '').trim();
+app.post('/api/rsvp', rateLimit('rsvp', 30), async (req, res) => {
+  const name = sanitize(req.body?.name ?? '', 200);
   const attending = req.body?.attending === 'no' ? 'no' : 'yes';
   const count = Math.max(1, Math.min(10, Number(req.body?.count) || 1));
-  const notes = String(req.body?.notes ?? '').trim().slice(0, 500);
+  const notes = sanitize(req.body?.notes ?? '', 500);
 
   if (!name) return res.status(400).json({ error: 'Please enter your name.' });
 
@@ -275,7 +317,7 @@ app.post('/api/rsvp', async (req, res) => {
     res.status(201).json({ ok: true, id, name, attending, count });
   } catch (err) {
     console.error('RSVP save error:', err.message);
-    res.status(500).json({ error: err.message || 'Could not save RSVP' });
+    res.status(500).json({ error: 'Could not save your RSVP. Please try again.' });
   }
 });
 
