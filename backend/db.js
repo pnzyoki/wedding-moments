@@ -182,7 +182,8 @@ export async function getApprovedPhotos() {
 
     return (data || []).map(r => ({
       id: r.id,
-      url: r.file_url,
+      url: `/api/photo-proxy?url=${encodeURIComponent(r.file_url)}`,
+      rawUrl: r.file_url,
       author: r.author || '',
       guestId: r.guest_id,
       createdAt: new Date(r.created_at).getTime(),
@@ -468,7 +469,8 @@ export async function getAdminPhotos(status) {
       if (error) { console.error('[Supabase getAdminPhotos error]', error); return []; }
       return (data || []).map(r => ({
         id: r.id,
-        url: r.file_url,
+        url: `/api/photo-proxy?url=${encodeURIComponent(r.file_url)}`,
+        rawUrl: r.file_url,
         author: r.author || '',
         status: r.status,
         createdAt: new Date(r.created_at).getTime(),

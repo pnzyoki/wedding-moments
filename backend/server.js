@@ -233,6 +233,28 @@ app.get('/api/photos', async (_req, res) => {
   res.json(photos);
 });
 
+// Photo view proxy — guaranteed same-origin image delivery without cross-origin or CSP friction
+app.get('/api/photo-proxy', async (req, res) => {
+  const url = req.query.url;
+  if (!url || typeof url !== 'string' || !url.startsWith('https://')) {
+    return res.status(400).send('Invalid url');
+  }
+  try {
+    const target = new URL(url);
+    if (!target.hostname.endsWith('supabase.co')) {
+      return res.status(403).send('Forbidden');
+    }
+    const upstream = await fetch(url);
+    if (!upstream.ok) return res.status(upstream.status).send('Upstream error');
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    const buf = Buffer.from(await upstream.arrayBuffer());
+    res.send(buf);
+  } catch (err) {
+    res.status(500).send('Proxy error');
+  }
+});
+
 // Upload Photo
 app.post('/api/photos', requireGuest, upload.single('photo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Choose a JPG, PNG, WebP or HEIC image.' });

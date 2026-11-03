@@ -435,9 +435,10 @@ function renderPhotos() {
     const card = document.createElement('div');
     card.className = 'pcard';
     const imgSrc = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+    const fallbackSrc = p.rawUrl || imgSrc;
     const authorTag = p.author ? ` &middot; <b>${esc(p.author)}</b>` : '';
     card.innerHTML = `
-      <img src="${imgSrc}" alt="Uploaded photo" loading="lazy">
+      <img src="${imgSrc}" alt="Uploaded photo" onerror="if(!this.dataset.tried){this.dataset.tried='1';this.src='${fallbackSrc}';}">
       <div class="pmeta">
         <span><span class="code">${esc(p.guest)}</span>${authorTag}</span>
         <span class="chip ${p.status}">${p.status}</span>

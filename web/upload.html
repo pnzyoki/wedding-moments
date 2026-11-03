@@ -409,7 +409,13 @@ function buildPin(p) {
   const el = document.createElement('div');
   el.className = 'pin';
   const img = document.createElement('img');
-  img.src = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+  const primarySrc = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+  img.src = primarySrc;
+  if (p.rawUrl) {
+    img.onerror = function() {
+      if (!this.dataset.tried) { this.dataset.tried = '1'; this.src = p.rawUrl; }
+    };
+  }
   img.alt = p.author ? `Photo by ${p.author}` : 'Shared moment';
   img.loading = 'lazy';
   img.onclick = () => openLightbox(p.id);
