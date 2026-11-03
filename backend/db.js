@@ -33,7 +33,6 @@ if (useSupabase) {
     sqlite.pragma('journal_mode = WAL');
     sqlite.pragma('foreign_keys = ON');
 
-    // Initialize SQLite tables
     sqlite.exec(`
       CREATE TABLE IF NOT EXISTS guests (
         id TEXT PRIMARY KEY,
@@ -88,12 +87,18 @@ if (useSupabase) {
 
 export const isUsingSupabase = () => useSupabase;
 
+// Throw a descriptive error when no database is available (e.g. Vercel without env vars)
+function noDb() {
+  throw new Error('No database available. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as environment variables.');
+}
+
 // ---------- Settings ----------
 export async function getSetting(key) {
   if (useSupabase) {
     const { data } = await supabase.from('settings').select('value').eq('key', key).maybeSingle();
     return data?.value ?? null;
   }
+  if (!sqlite) return null;
   return sqlite.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value ?? null;
 }
 
@@ -102,6 +107,7 @@ export async function putSetting(key, value) {
     await supabase.from('settings').upsert({ key, value: String(value) });
     return;
   }
+  if (!sqlite) noDb();
   sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
     .run(key, String(value));
 }
@@ -122,6 +128,7 @@ export async function createGuest(tokenHash) {
     await supabase.from('guests').insert({ id, token_hash: tokenHash, created_at: new Date().toISOString() });
     return id;
   }
+  if (!sqlite) noDb();
   sqlite.prepare('INSERT INTO guests (id, token_hash, created_at) VALUES (?, ?, ?)').run(id, tokenHash, now());
   return id;
 }
@@ -131,6 +138,7 @@ export async function findGuestByTokenHash(tokenHash) {
     const { data } = await supabase.from('guests').select('id').eq('token_hash', tokenHash).maybeSingle();
     return data?.id ?? null;
   }
+  if (!sqlite) return null;
   return sqlite.prepare('SELECT id FROM guests WHERE token_hash = ?').get(tokenHash)?.id ?? null;
 }
 
@@ -146,6 +154,7 @@ export async function getGuestQuota(guestId, limits) {
     photoCount = pCount || 0;
     msgCount = mCount || 0;
   } else {
+    if (!sqlite) noDb();
     photoCount = sqlite.prepare('SELECT COUNT(*) AS n FROM photos WHERE guest_id = ?').get(guestId).n;
     msgCount = sqlite.prepare('SELECT COUNT(*) AS n FROM messages WHERE guest_id = ?').get(guestId).n;
   }
@@ -175,6 +184,7 @@ export async function getApprovedPhotos() {
     }));
   }
 
+  if (!sqlite) return [];
   const rows = sqlite.prepare(`
     SELECT p.id, p.file, p.author, p.guest_id, p.created_at,
       (SELECT COUNT(*) FROM reactions r WHERE r.photo_id = p.id) AS likes
@@ -207,6 +217,7 @@ export async function savePhoto({ guestId, filename, fileUrl, author, status, li
     return id;
   }
 
+  if (!sqlite) noDb();
   const save = sqlite.transaction(() => {
     const { n } = sqlite.prepare('SELECT COUNT(*) AS n FROM photos WHERE guest_id = ?').get(guestId);
     if (n >= limit) throw Object.assign(new Error('LIMIT'), { limit: true });
@@ -226,6 +237,7 @@ export async function deleteGuestPhoto(photoId, guestId) {
     return true;
   }
 
+  if (!sqlite) noDb();
   const row = sqlite.prepare('SELECT file FROM photos WHERE id = ? AND guest_id = ?').get(photoId, guestId);
   if (!row) return false;
   sqlite.prepare('DELETE FROM photos WHERE id = ?').run(photoId);
@@ -247,6 +259,7 @@ export async function toggleLike(photoId, guestId) {
     return { liked: !existing, likes: count || 0 };
   }
 
+  if (!sqlite) noDb();
   const existing = sqlite.prepare('SELECT 1 FROM reactions WHERE photo_id = ? AND guest_id = ?').get(photoId, guestId);
   if (existing) {
     sqlite.prepare('DELETE FROM reactions WHERE photo_id = ? AND guest_id = ?').run(photoId, guestId);
@@ -274,6 +287,7 @@ export async function getApprovedMessages() {
     }));
   }
 
+  if (!sqlite) return [];
   const rows = sqlite.prepare("SELECT id, text, author, created_at FROM messages WHERE status = 'approved' ORDER BY created_at ASC").all();
   return rows.map(r => ({ id: r.id, text: r.text, author: r.author || '', createdAt: r.created_at }));
 }
@@ -295,6 +309,7 @@ export async function saveMessage({ guestId, text, author, status, limit }) {
     return id;
   }
 
+  if (!sqlite) noDb();
   const save = sqlite.transaction(() => {
     const { n } = sqlite.prepare('SELECT COUNT(*) AS n FROM messages WHERE guest_id = ?').get(guestId);
     if (n >= limit) throw Object.assign(new Error('LIMIT'), { limit: true });
@@ -321,6 +336,7 @@ export async function saveRsvp({ name, attending, count, notes }) {
     return id;
   }
 
+  if (!sqlite) noDb();
   sqlite.prepare('INSERT INTO rsvps (id, name, attending, count, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)')
     .run(id, name, attending, count, notes || null, now());
   return id;
@@ -346,6 +362,7 @@ export async function getAllRsvps() {
     return { summary: { totalResponses, attendingYes, attendingNo, totalGuests }, rsvps: rows };
   }
 
+  if (!sqlite) return { summary: { totalResponses: 0, attendingYes: 0, attendingNo: 0, totalGuests: 0 }, rsvps: [] };
   const rows = sqlite.prepare('SELECT id, name, attending, count, notes, created_at FROM rsvps ORDER BY created_at DESC').all();
   const totalResponses = rows.length;
   const attendingYes = rows.filter(r => r.attending === 'yes').length;
@@ -360,6 +377,7 @@ export async function deleteRsvp(id) {
     await supabase.from('rsvps').delete().eq('id', id);
     return;
   }
+  if (!sqlite) noDb();
   sqlite.prepare('DELETE FROM rsvps WHERE id = ?').run(id);
 }
 
@@ -369,6 +387,7 @@ export async function createAdminSession(tokenHash, expiresAt) {
     await supabase.from('admin_sessions').insert({ token_hash: tokenHash, expires_at: expiresAt });
     return;
   }
+  if (!sqlite) noDb();
   sqlite.prepare('INSERT INTO admin_sessions (token_hash, expires_at) VALUES (?, ?)').run(tokenHash, expiresAt);
 }
 
@@ -378,6 +397,7 @@ export async function verifyAdminSession(tokenHash) {
       .eq('token_hash', tokenHash).gt('expires_at', now()).maybeSingle();
     return Boolean(data);
   }
+  if (!sqlite) return false;
   return Boolean(sqlite.prepare('SELECT 1 FROM admin_sessions WHERE token_hash = ? AND expires_at > ?').get(tokenHash, now()));
 }
 
@@ -401,6 +421,7 @@ export async function getAdminSummary() {
     };
   }
 
+  if (!sqlite) return { photos: 0, pendingPhotos: 0, messages: 0, pendingMessages: 0, guests: 0, rsvps: 0 };
   const count = sql => sqlite.prepare(sql).get()?.n ?? 0;
   return {
     photos: count('SELECT COUNT(*) AS n FROM photos'),
@@ -427,6 +448,7 @@ export async function getAdminPhotos(status) {
     }));
   }
 
+  if (!sqlite) return [];
   const rows = sqlite.prepare(`
     SELECT p.id, p.file, p.author, p.status, p.created_at, substr(p.guest_id, 1, 6) AS guest
     FROM photos p
@@ -448,6 +470,7 @@ export async function updatePhotoStatus(id, status) {
     const { error } = await supabase.from('photos').update({ status }).eq('id', id);
     return !error;
   }
+  if (!sqlite) noDb();
   const result = sqlite.prepare('UPDATE photos SET status = ? WHERE id = ?').run(status, id);
   return result.changes > 0;
 }
@@ -457,6 +480,7 @@ export async function deletePhoto(id) {
     await supabase.from('photos').delete().eq('id', id);
     return true;
   }
+  if (!sqlite) noDb();
   const row = sqlite.prepare('SELECT file FROM photos WHERE id = ?').get(id);
   if (!row) return false;
   sqlite.prepare('DELETE FROM photos WHERE id = ?').run(id);
@@ -479,6 +503,7 @@ export async function getAdminMessages(status) {
     }));
   }
 
+  if (!sqlite) return [];
   const rows = sqlite.prepare(`
     SELECT id, text, author, status, created_at, substr(guest_id, 1, 6) AS guest
     FROM messages WHERE (? IS NULL OR status = ?) ORDER BY created_at DESC`).all(status ?? null, status ?? null);
@@ -498,6 +523,7 @@ export async function updateMessageStatus(id, status) {
     const { error } = await supabase.from('messages').update({ status }).eq('id', id);
     return !error;
   }
+  if (!sqlite) noDb();
   const result = sqlite.prepare('UPDATE messages SET status = ? WHERE id = ?').run(status, id);
   return result.changes > 0;
 }
@@ -507,6 +533,7 @@ export async function deleteMessage(id) {
     await supabase.from('messages').delete().eq('id', id);
     return true;
   }
+  if (!sqlite) noDb();
   sqlite.prepare('DELETE FROM messages WHERE id = ?').run(id);
   return true;
 }
@@ -531,6 +558,7 @@ export async function getAdminGuests() {
     }));
   }
 
+  if (!sqlite) return [];
   const rows = sqlite.prepare(`
     SELECT g.id, g.created_at,
       (SELECT COUNT(*) FROM photos p WHERE p.guest_id = g.id) AS photos,
@@ -549,6 +577,7 @@ export async function resetGuest(guestId) {
     return true;
   }
 
+  if (!sqlite) noDb();
   const files = sqlite.prepare('SELECT file FROM photos WHERE guest_id = ?').all(guestId);
   sqlite.transaction(() => {
     sqlite.prepare('DELETE FROM messages WHERE guest_id = ?').run(guestId);
@@ -580,6 +609,7 @@ export async function storePhotoFile(file) {
     return { filename, fileUrl: publicUrlData.publicUrl };
   }
 
+  if (!sqlite) noDb();
   // Local fallback disk write
   fs.writeFileSync(path.join(UPLOAD_DIR, filename), file.buffer);
   return { filename, fileUrl: `/uploads/${filename}` };

@@ -32,14 +32,19 @@ function safeEqual(a, b) {
   return crypto.timingSafeEqual(hashA, hashB);
 }
 
-// Initialize default event settings
-await db.initDefaultSettings({
-  uploads_open: '1',
-  require_approval: '1',
-  display_on: '1',
-  close_date: '',
-  display_token: newToken().slice(0, 16)
-});
+// Initialize default event settings (only when a database is available)
+try {
+  await db.initDefaultSettings({
+    uploads_open: '1',
+    require_approval: '1',
+    display_on: '1',
+    close_date: '',
+    display_token: newToken().slice(0, 16)
+  });
+} catch (err) {
+  if (!String(err.message).includes('No database')) throw err;
+  console.warn('[Server] Skipping default settings init — no database configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+}
 
 async function uploadBlock() {
   if (await db.getSetting('uploads_open') !== '1') return 'Uploads are paused right now.';
