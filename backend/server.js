@@ -77,11 +77,36 @@ async function requireGuest(req, res, next) {
   next();
 }
 
-async function requireAdmin(req, res, next) {
+const ADMIN_SECRET = crypto.createHash('sha256').update(ADMIN_CODE + ':admin-token-salt').digest();
+
+function createAdminToken() {
+  const expires = Date.now() + ADMIN_SESSION_HOURS * 3_600_000;
+  const payload = Buffer.from(JSON.stringify({ exp: expires })).toString('base64url');
+  const sig = crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest('base64url');
+  return `${payload}.${sig}`;
+}
+
+function verifyAdminToken(token) {
+  if (!token || typeof token !== 'string') return false;
+  const dot = token.indexOf('.');
+  if (dot === -1) return false;
+  const payload = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  const expectedSig = crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest('base64url');
+  if (sig.length !== expectedSig.length) return false;
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return false;
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return typeof data.exp === 'number' && data.exp > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function requireAdmin(req, res, next) {
   const token = bearer(req);
   if (!token) return res.status(401).json({ error: 'Admin sign-in required.' });
-  const valid = await db.verifyAdminSession(sha(token));
-  if (!valid) return res.status(401).json({ error: 'Admin session expired. Please sign in again.' });
+  if (!verifyAdminToken(token)) return res.status(401).json({ error: 'Admin session expired. Please sign in again.' });
   next();
 }
 
@@ -245,8 +270,13 @@ app.post('/api/rsvp', async (req, res) => {
 
   if (!name) return res.status(400).json({ error: 'Please enter your name.' });
 
-  const id = await db.saveRsvp({ name, attending, count, notes });
-  res.status(201).json({ ok: true, id, name, attending, count });
+  try {
+    const id = await db.saveRsvp({ name, attending, count, notes });
+    res.status(201).json({ ok: true, id, name, attending, count });
+  } catch (err) {
+    console.error('RSVP save error:', err.message);
+    res.status(500).json({ error: err.message || 'Could not save RSVP' });
+  }
 });
 
 // Venue Display Feed
@@ -271,13 +301,12 @@ app.get('/api/display/:token/wall', async (req, res) => {
   res.json({ photos, messages });
 });
 
-// Admin Login
-app.post('/api/admin/login', rateLimit('admin-login', 10), async (req, res) => {
+// Admin Login (stateless HMAC token)
+app.post('/api/admin/login', rateLimit('admin-login', 10), (req, res) => {
   if (!safeEqual(req.body?.code ?? '', ADMIN_CODE)) {
     return res.status(403).json({ error: 'That passcode is not right.' });
   }
-  const token = newToken();
-  await db.createAdminSession(sha(token), now() + ADMIN_SESSION_HOURS * 3_600_000);
+  const token = createAdminToken();
   res.json({ token, expiresInHours: ADMIN_SESSION_HOURS });
 });
 
@@ -349,13 +378,25 @@ app.post('/api/admin/guests/:id/reset', requireAdmin, async (req, res) => {
 
 // Admin Settings
 app.get('/api/admin/settings', requireAdmin, async (_req, res) => {
-  res.json({
-    uploadsOpen: (await db.getSetting('uploads_open')) === '1',
-    requireApproval: (await db.getSetting('require_approval')) === '1',
-    displayOn: (await db.getSetting('display_on')) === '1',
-    closeDate: (await db.getSetting('close_date')) || '',
-    displayToken: await db.getSetting('display_token')
-  });
+  try {
+    res.json({
+      uploadsOpen: (await db.getSetting('uploads_open')) === '1',
+      requireApproval: (await db.getSetting('require_approval')) === '1',
+      displayOn: (await db.getSetting('display_on')) === '1',
+      closeDate: (await db.getSetting('close_date')) || '',
+      displayToken: (await db.getSetting('display_token')) || 'default-token',
+      dbDriver: db.isUsingSupabase() ? 'supabase' : 'sqlite'
+    });
+  } catch (err) {
+    res.json({
+      uploadsOpen: true,
+      requireApproval: true,
+      displayOn: true,
+      closeDate: '',
+      displayToken: 'default-token',
+      dbDriver: 'none'
+    });
+  }
 });
 
 const SETTING_KEYS = {

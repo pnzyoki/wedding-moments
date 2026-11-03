@@ -325,7 +325,7 @@ export async function saveMessage({ guestId, text, author, status, limit }) {
 export async function saveRsvp({ name, attending, count, notes }) {
   const id = newId();
   if (useSupabase) {
-    await supabase.from('rsvps').insert({
+    const { error } = await supabase.from('rsvps').insert({
       id,
       name,
       attending,
@@ -333,6 +333,10 @@ export async function saveRsvp({ name, attending, count, notes }) {
       notes: notes || null,
       created_at: new Date().toISOString()
     });
+    if (error) {
+      console.error('[Supabase saveRsvp error]', error);
+      throw new Error(error.message || 'Supabase RSVP insert error');
+    }
     return id;
   }
 
@@ -344,22 +348,31 @@ export async function saveRsvp({ name, attending, count, notes }) {
 
 export async function getAllRsvps() {
   if (useSupabase) {
-    const { data } = await supabase.from('rsvps').select('*').order('created_at', { ascending: false });
-    const rows = (data || []).map(r => ({
-      id: r.id,
-      name: r.name,
-      attending: r.attending,
-      count: r.count,
-      notes: r.notes || '',
-      createdAt: new Date(r.created_at).getTime()
-    }));
+    try {
+      const { data, error } = await supabase.from('rsvps').select('*').order('created_at', { ascending: false });
+      if (error) {
+        console.error('[Supabase getAllRsvps error]', error);
+        return { summary: { totalResponses: 0, attendingYes: 0, attendingNo: 0, totalGuests: 0 }, rsvps: [] };
+      }
+      const rows = (data || []).map(r => ({
+        id: r.id,
+        name: r.name,
+        attending: r.attending,
+        count: r.count,
+        notes: r.notes || '',
+        createdAt: new Date(r.created_at).getTime()
+      }));
 
-    const totalResponses = rows.length;
-    const attendingYes = rows.filter(r => r.attending === 'yes').length;
-    const attendingNo = rows.filter(r => r.attending === 'no').length;
-    const totalGuests = rows.filter(r => r.attending === 'yes').reduce((sum, r) => sum + r.count, 0);
+      const totalResponses = rows.length;
+      const attendingYes = rows.filter(r => r.attending === 'yes').length;
+      const attendingNo = rows.filter(r => r.attending === 'no').length;
+      const totalGuests = rows.filter(r => r.attending === 'yes').reduce((sum, r) => sum + r.count, 0);
 
-    return { summary: { totalResponses, attendingYes, attendingNo, totalGuests }, rsvps: rows };
+      return { summary: { totalResponses, attendingYes, attendingNo, totalGuests }, rsvps: rows };
+    } catch (err) {
+      console.error('[Supabase getAllRsvps exception]', err);
+      return { summary: { totalResponses: 0, attendingYes: 0, attendingNo: 0, totalGuests: 0 }, rsvps: [] };
+    }
   }
 
   if (!sqlite) return { summary: { totalResponses: 0, attendingYes: 0, attendingNo: 0, totalGuests: 0 }, rsvps: [] };
@@ -403,25 +416,31 @@ export async function verifyAdminSession(tokenHash) {
 
 export async function getAdminSummary() {
   if (useSupabase) {
-    const [p, pPending, m, mPending, g, r] = await Promise.all([
-      supabase.from('photos').select('*', { count: 'exact', head: true }),
-      supabase.from('photos').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('messages').select('*', { count: 'exact', head: true }),
-      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('guests').select('*', { count: 'exact', head: true }),
-      supabase.from('rsvps').select('*', { count: 'exact', head: true })
-    ]);
-    return {
-      photos: p.count || 0,
-      pendingPhotos: pPending.count || 0,
-      messages: m.count || 0,
-      pendingMessages: mPending.count || 0,
-      guests: g.count || 0,
-      rsvps: r.count || 0
-    };
+    try {
+      const [p, pPending, m, mPending, g, r] = await Promise.all([
+        supabase.from('photos').select('*', { count: 'exact', head: true }),
+        supabase.from('photos').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('messages').select('*', { count: 'exact', head: true }),
+        supabase.from('messages').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('guests').select('*', { count: 'exact', head: true }),
+        supabase.from('rsvps').select('*', { count: 'exact', head: true })
+      ]);
+      return {
+        photos: p.count || 0,
+        pendingPhotos: pPending.count || 0,
+        messages: m.count || 0,
+        pendingMessages: mPending.count || 0,
+        guests: g.count || 0,
+        rsvps: r.count || 0,
+        dbStatus: 'connected'
+      };
+    } catch (err) {
+      console.error('[Supabase getAdminSummary error]', err);
+      return { photos: 0, pendingPhotos: 0, messages: 0, pendingMessages: 0, guests: 0, rsvps: 0, dbStatus: 'error' };
+    }
   }
 
-  if (!sqlite) return { photos: 0, pendingPhotos: 0, messages: 0, pendingMessages: 0, guests: 0, rsvps: 0 };
+  if (!sqlite) return { photos: 0, pendingPhotos: 0, messages: 0, pendingMessages: 0, guests: 0, rsvps: 0, dbStatus: 'no-db' };
   const count = sql => sqlite.prepare(sql).get()?.n ?? 0;
   return {
     photos: count('SELECT COUNT(*) AS n FROM photos'),
@@ -429,23 +448,30 @@ export async function getAdminSummary() {
     messages: count('SELECT COUNT(*) AS n FROM messages'),
     pendingMessages: count("SELECT COUNT(*) AS n FROM messages WHERE status = 'pending'"),
     guests: count('SELECT COUNT(*) AS n FROM guests'),
-    rsvps: count('SELECT COUNT(*) AS n FROM rsvps')
+    rsvps: count('SELECT COUNT(*) AS n FROM rsvps'),
+    dbStatus: 'sqlite'
   };
 }
 
 export async function getAdminPhotos(status) {
   if (useSupabase) {
-    let query = supabase.from('photos').select('id, file_url, author, status, created_at, guest_id').order('created_at', { ascending: false });
-    if (status) query = query.eq('status', status);
-    const { data } = await query;
-    return (data || []).map(r => ({
-      id: r.id,
-      url: r.file_url,
-      author: r.author || '',
-      status: r.status,
-      createdAt: new Date(r.created_at).getTime(),
-      guest: (r.guest_id || '').slice(0, 6)
-    }));
+    try {
+      let query = supabase.from('photos').select('id, file_url, author, status, created_at, guest_id').order('created_at', { ascending: false });
+      if (status) query = query.eq('status', status);
+      const { data, error } = await query;
+      if (error) { console.error('[Supabase getAdminPhotos error]', error); return []; }
+      return (data || []).map(r => ({
+        id: r.id,
+        url: r.file_url,
+        author: r.author || '',
+        status: r.status,
+        createdAt: new Date(r.created_at).getTime(),
+        guest: (r.guest_id || '').slice(0, 6)
+      }));
+    } catch (err) {
+      console.error('[Supabase getAdminPhotos exception]', err);
+      return [];
+    }
   }
 
   if (!sqlite) return [];
@@ -490,17 +516,23 @@ export async function deletePhoto(id) {
 
 export async function getAdminMessages(status) {
   if (useSupabase) {
-    let query = supabase.from('messages').select('id, text, author, status, created_at, guest_id').order('created_at', { ascending: false });
-    if (status) query = query.eq('status', status);
-    const { data } = await query;
-    return (data || []).map(r => ({
-      id: r.id,
-      text: r.text,
-      author: r.author || '',
-      status: r.status,
-      createdAt: new Date(r.created_at).getTime(),
-      guest: (r.guest_id || '').slice(0, 6)
-    }));
+    try {
+      let query = supabase.from('messages').select('id, text, author, status, created_at, guest_id').order('created_at', { ascending: false });
+      if (status) query = query.eq('status', status);
+      const { data, error } = await query;
+      if (error) { console.error('[Supabase getAdminMessages error]', error); return []; }
+      return (data || []).map(r => ({
+        id: r.id,
+        text: r.text,
+        author: r.author || '',
+        status: r.status,
+        createdAt: new Date(r.created_at).getTime(),
+        guest: (r.guest_id || '').slice(0, 6)
+      }));
+    } catch (err) {
+      console.error('[Supabase getAdminMessages exception]', err);
+      return [];
+    }
   }
 
   if (!sqlite) return [];
@@ -540,22 +572,29 @@ export async function deleteMessage(id) {
 
 export async function getAdminGuests() {
   if (useSupabase) {
-    const { data: guests } = await supabase.from('guests').select('id, created_at').order('created_at', { ascending: false });
-    const { data: photos } = await supabase.from('photos').select('guest_id');
-    const { data: messages } = await supabase.from('messages').select('guest_id');
+    try {
+      const [{ data: guests }, { data: photos }, { data: messages }] = await Promise.all([
+        supabase.from('guests').select('id, created_at').order('created_at', { ascending: false }),
+        supabase.from('photos').select('guest_id'),
+        supabase.from('messages').select('guest_id')
+      ]);
 
-    const photoCounts = {};
-    (photos || []).forEach(p => { photoCounts[p.guest_id] = (photoCounts[p.guest_id] || 0) + 1; });
-    const msgCounts = {};
-    (messages || []).forEach(m => { msgCounts[m.guest_id] = (msgCounts[m.guest_id] || 0) + 1; });
+      const photoCounts = {};
+      (photos || []).forEach(p => { photoCounts[p.guest_id] = (photoCounts[p.guest_id] || 0) + 1; });
+      const msgCounts = {};
+      (messages || []).forEach(m => { msgCounts[m.guest_id] = (msgCounts[m.guest_id] || 0) + 1; });
 
-    return (guests || []).map(g => ({
-      id: g.id,
-      guest: g.id.slice(0, 6),
-      joinedAt: new Date(g.created_at).getTime(),
-      photos: photoCounts[g.id] || 0,
-      messages: msgCounts[g.id] || 0
-    }));
+      return (guests || []).map(g => ({
+        id: g.id,
+        guest: g.id.slice(0, 6),
+        joinedAt: new Date(g.created_at).getTime(),
+        photos: photoCounts[g.id] || 0,
+        messages: msgCounts[g.id] || 0
+      }));
+    } catch (err) {
+      console.error('[Supabase getAdminGuests error]', err);
+      return [];
+    }
   }
 
   if (!sqlite) return [];

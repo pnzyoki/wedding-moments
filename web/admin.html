@@ -150,6 +150,7 @@ td.num{font-variant-numeric:tabular-nums}
 <main id="admin" class="wrap hide">
   <h1>Event Dashboard</h1>
   <p class="sub">Ruth & Elvis Wedding &middot; November 14, 2026</p>
+  <div id="dbBanner" class="notice hide"></div>
 
   <div class="stats">
     <div class="stat"><div class="n" id="sPhotos">0</div><div class="l">Photos Uploaded</div></div>
@@ -320,9 +321,21 @@ function authHeader() {
 /* ---------- Auth ---------- */
 function isUnlocked() { return !!adminToken; }
 
+function handleAuth(res) {
+  if (res.status === 401) {
+    adminToken = '';
+    sessionStorage.removeItem('mf_admin_token');
+    route();
+    $('loginErr').textContent = 'Session expired. Please enter the passcode again.';
+    return false;
+  }
+  return true;
+}
+
 $('loginBtn').onclick = async () => {
   const code = $('pass').value.trim();
   $('loginErr').textContent = '';
+  if (!code) { $('loginErr').textContent = 'Please enter the admin passcode.'; return; }
   try {
     const res = await fetch(`${API_BASE}/api/admin/login`, {
       method: 'POST',
@@ -333,14 +346,15 @@ $('loginBtn').onclick = async () => {
       const data = await res.json();
       adminToken = data.token;
       sessionStorage.setItem('mf_admin_token', adminToken);
+      $('loginErr').textContent = '';
       route();
     } else {
       const data = await res.json().catch(() => ({}));
       $('loginErr').textContent = data.error || 'That passcode is not right.';
       $('pass').select();
     }
-  } catch {
-    $('loginErr').textContent = 'Server connection failed.';
+  } catch (err) {
+    $('loginErr').textContent = 'Server connection failed: ' + err.message;
   }
 };
 $('pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
@@ -368,12 +382,30 @@ function route() {
 async function loadSummary() {
   try {
     const res = await fetch(`${API_BASE}/api/admin/summary`, { headers: authHeader() });
+    if (!handleAuth(res)) return;
     if (res.ok) {
       const s = await res.json();
       $('sPhotos').textContent = s.photos;
       $('sPending').textContent = s.pendingPhotos + s.pendingMessages;
       $('sMsgs').textContent = s.messages;
       $('sRsvps').textContent = s.rsvps || 0;
+
+      const banner = $('dbBanner');
+      if (s.dbStatus === 'no-db') {
+        banner.className = 'notice';
+        banner.style.background = '#F6E6E4';
+        banner.style.color = '#A8706F';
+        banner.innerHTML = '<strong>Database Setup Required:</strong> Supabase environment variables are missing on Vercel. In Vercel Project Settings &rarr; Environment Variables, add <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_ROLE_KEY</code>, then Redeploy.';
+        banner.classList.remove('hide');
+      } else if (s.dbStatus === 'error') {
+        banner.className = 'notice';
+        banner.style.background = '#F3E3C7';
+        banner.style.color = '#7A5514';
+        banner.innerHTML = '<strong>Database Tables Not Found:</strong> Open your Supabase SQL Editor and execute the script in <code>backend/supabase_schema.sql</code> to create tables.';
+        banner.classList.remove('hide');
+      } else {
+        banner.classList.add('hide');
+      }
     }
   } catch (err) {
     console.warn('Summary load error', err);
@@ -386,6 +418,7 @@ async function loadPhotos() {
   try {
     const q = photoFilter === 'all' ? '' : `?status=${photoFilter}`;
     const res = await fetch(`${API_BASE}/api/admin/photos${q}`, { headers: authHeader() });
+    if (!handleAuth(res)) return;
     if (res.ok) {
       photosList = await res.json();
       renderPhotos();
@@ -459,6 +492,7 @@ async function loadMsgs() {
   try {
     const q = msgFilter === 'all' ? '' : `?status=${msgFilter}`;
     const res = await fetch(`${API_BASE}/api/admin/messages${q}`, { headers: authHeader() });
+    if (!handleAuth(res)) return;
     if (res.ok) {
       msgsList = await res.json();
       renderMsgs();
@@ -533,6 +567,7 @@ $('approveAllMsgs').onclick = async () => {
 async function loadRsvps() {
   try {
     const res = await fetch(`${API_BASE}/api/admin/rsvps`, { headers: authHeader() });
+    if (!handleAuth(res)) return;
     if (res.ok) {
       const data = await res.json();
       rsvpsList = data.rsvps || [];
@@ -594,6 +629,7 @@ $('exportRsvpCsv').onclick = () => {
 async function loadQuotas() {
   try {
     const res = await fetch(`${API_BASE}/api/admin/guests`, { headers: authHeader() });
+    if (!handleAuth(res)) return;
     if (res.ok) {
       const rows = await res.json();
       const body = $('quotaBody');
@@ -634,6 +670,7 @@ $('quotaBody').addEventListener('click', async e => {
 async function loadSettings() {
   try {
     const res = await fetch(`${API_BASE}/api/admin/settings`, { headers: authHeader() });
+    if (!handleAuth(res)) return;
     if (res.ok) {
       currentSettings = await res.json();
       const displayUrl = `${window.location.origin}/display.html?token=${currentSettings.displayToken}`;
