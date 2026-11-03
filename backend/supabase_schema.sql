@@ -1,6 +1,7 @@
 -- ====================================================================
 -- Wedding Moments: Supabase (PostgreSQL) Schema & Setup
 -- Ruth & Elvis Wedding (November 14, 2026)
+-- Safe to run repeatedly (Idempotent)
 -- ====================================================================
 
 -- 1. Enable pgcrypto / uuid-ossp for gen_random_uuid()
@@ -79,10 +80,24 @@ VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- ====================================================================
--- Realtime Subscriptions (Broadcast approved items instantly)
--- ====================================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.photos;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+-- Realtime Subscriptions (Safely add if not already present)
+-- ====================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'photos'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.photos;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'messages'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+  END IF;
+END $$;
 
 -- ====================================================================
 -- Storage Bucket Setup for Wedding Photos
@@ -98,7 +113,7 @@ VALUES (
 ON CONFLICT (id) DO UPDATE SET public = true;
 
 -- ====================================================================
--- Row Level Security (RLS) Policies
+-- Row Level Security (RLS) Policies (Drop first then re-create)
 -- ====================================================================
 ALTER TABLE public.rsvps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.photos ENABLE ROW LEVEL SECURITY;
@@ -106,22 +121,27 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
--- RSVPs: Anyone can insert; only service role / admin reads
+-- RSVPs: Anyone can insert; service role reads/admin
+DROP POLICY IF EXISTS "Public can submit RSVPs" ON public.rsvps;
 CREATE POLICY "Public can submit RSVPs" ON public.rsvps
   FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 -- Photos: Public can view approved photos
+DROP POLICY IF EXISTS "Public can view approved photos" ON public.photos;
 CREATE POLICY "Public can view approved photos" ON public.photos
   FOR SELECT TO anon, authenticated USING (status = 'approved');
 
 -- Messages: Public can view approved messages
+DROP POLICY IF EXISTS "Public can view approved messages" ON public.messages;
 CREATE POLICY "Public can view approved messages" ON public.messages
   FOR SELECT TO anon, authenticated USING (status = 'approved');
 
 -- Reactions: Public can read reactions count
+DROP POLICY IF EXISTS "Public can view reactions" ON public.reactions;
 CREATE POLICY "Public can view reactions" ON public.reactions
   FOR SELECT TO anon, authenticated USING (true);
 
 -- Storage: Public can read photos from the bucket
+DROP POLICY IF EXISTS "Public can view photos in storage" ON storage.objects;
 CREATE POLICY "Public can view photos in storage" ON storage.objects
   FOR SELECT TO anon, authenticated USING (bucket_id = 'wedding-photos');
