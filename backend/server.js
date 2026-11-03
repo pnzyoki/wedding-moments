@@ -10,15 +10,18 @@ import * as db from './db.js';
 function securityHeaders(req, res, next) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '0'); // modern browsers ignore; CSP is the real guard
+  res.setHeader('X-XSS-Protection', '0');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  // Allow uploads from Supabase storage and same origin; block everything else
-  const supabaseOrigin = process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).origin : '';
-  const imgSrc = supabaseOrigin ? `'self' ${supabaseOrigin} blob: data:` : "'self' blob: data:";
+
+  const rawUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  let supabaseOrigin = '';
+  try { if (rawUrl) supabaseOrigin = new URL(rawUrl).origin; } catch (_) {}
+  const imgSrc = `'self' ${supabaseOrigin} https://*.supabase.co https://*.supabase.in blob: data: https:`;
+
   res.setHeader(
     'Content-Security-Policy',
-    `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src ${imgSrc}; connect-src 'self' ${supabaseOrigin}; frame-src https://www.google.com https://maps.google.com; frame-ancestors 'none';`
+    `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src ${imgSrc}; connect-src 'self' ${supabaseOrigin} https://*.supabase.co; frame-src https://www.google.com https://maps.google.com; frame-ancestors 'none';`
   );
   if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
     res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
