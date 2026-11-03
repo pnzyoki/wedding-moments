@@ -18,7 +18,7 @@ function securityHeaders(req, res, next) {
   const imgSrc = supabaseOrigin ? `'self' ${supabaseOrigin} blob: data:` : "'self' blob: data:";
   res.setHeader(
     'Content-Security-Policy',
-    `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src ${imgSrc}; connect-src 'self' ${supabaseOrigin}; frame-ancestors 'none';`
+    `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src ${imgSrc}; connect-src 'self' ${supabaseOrigin}; frame-src https://www.google.com https://maps.google.com; frame-ancestors 'none';`
   );
   if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
     res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
