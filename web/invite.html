@@ -416,11 +416,16 @@ $('rsvpSend').onclick = async () => {
     renderRsvp();
     toast('Thank you! Your RSVP has been received.');
   } catch (err) {
-    // If backend is unreachable or fails, save locally as fallback
-    store.set('mf_rsvp', { name, attend: attend.value, count });
-    setAlert('rsvpAlert', '');
-    renderRsvp();
-    toast('Saved on device (server unreachable).');
+    // Show real error if server responded; only fall back to local if truly unreachable
+    const isNetworkError = err instanceof TypeError;
+    if (isNetworkError) {
+      store.set('mf_rsvp', { name, attend: attend.value, count });
+      setAlert('rsvpAlert', '');
+      renderRsvp();
+      toast('Saved on device — server unreachable. Open via http://localhost:3000/invite');
+    } else {
+      setAlert('rsvpAlert', err.message || 'Could not submit RSVP. Please try again.');
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = 'Send reply';
