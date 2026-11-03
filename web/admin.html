@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moments: Admin Dashboard</title>
+<style>
+:root{
+  --sage:#8A9A7B; --sage-deep:#56654A; --sage-soft:#E1E7DA;
+  --cream:#FBF8F4; --beige:#F3E9E3; --burg:#A8706F; --burg-soft:#C28B8A;
+  --ink:#2F2622; --muted:#7D716B; --line:#E8DCD5; --white:#fff;
+  --radius:16px; --shadow:0 10px 30px -14px rgba(47,38,34,.22);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--cream);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:0;border-radius:10px;padding:9px 14px;font-weight:600;font-size:14px;background:var(--burg);color:var(--cream);transition:background .2s,transform .15s}
+button:hover:not(:disabled){background:var(--burg-soft)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.ghost:hover:not(:disabled){background:var(--beige)}
+button.sage{background:var(--sage-deep)}
+button.sage:hover:not(:disabled){background:var(--sage)}
+button.small{padding:6px 10px;font-size:13px}
+input[type=text],input[type=date],input[type=password],select,textarea{border:1px solid var(--line);background:var(--white);border-radius:10px;padding:10px 12px;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--sage);box-shadow:0 0 0 3px rgba(138,154,123,.2)}
+
+/* Top bar */
+.top{position:sticky;top:0;z-index:20;background:rgba(251,248,244,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+.dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--sage),var(--burg))}
+.nav{display:flex;align-items:center;gap:8px}
+.nav a{padding:8px 14px;border-radius:9px;text-decoration:none;color:var(--muted);font-weight:600;font-size:14px}
+.nav a.on{background:var(--white);color:var(--sage-deep);box-shadow:var(--shadow)}
+
+.wrap{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
+h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:normal;letter-spacing:-.01em}
+h1{font-size:32px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 24px;font-size:15px}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+.stat{background:var(--white);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border-top:3px solid var(--sage);transition:transform .2s,box-shadow .2s}
+.stat:nth-child(2){border-top-color:var(--burg)}
+.stat:nth-child(3){border-top-color:var(--sage-deep)}
+.stat:nth-child(4){border-top-color:#C9A24A}
+.stat:hover{transform:translateY(-2px);box-shadow:0 18px 34px -16px rgba(47,38,34,.3)}
+.stat .n{font-family:Georgia,serif;font-size:32px;font-weight:700;color:var(--sage-deep);font-variant-numeric:tabular-nums}
+.stat .l{color:var(--muted);font-size:13px;margin-top:2px}
+
+/* Cards and tabs */
+.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px;border:1px solid rgba(234,223,217,.8)}
+.tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.tab{background:transparent;color:var(--muted);border:1px solid var(--line);padding:8px 16px;border-radius:10px}
+.tab.on{background:var(--sage-deep);color:var(--cream);border-color:var(--sage-deep)}
+.toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}
+.toolbar .left,.toolbar .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* Photos */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.pcard{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--cream);display:flex;flex-direction:column}
+.pcard img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--beige)}
+.pmeta{padding:10px 12px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:6px;align-items:center}
+.pact{display:flex;gap:6px;padding:0 12px 12px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px}
+.chip.pending{background:#F3E3C7;color:#7A5514}
+.chip.approved{background:var(--sage-soft);color:var(--sage-deep)}
+.chip.hidden{background:#E7E2DC;color:#6A625B}
+.chip.yes{background:var(--sage-soft);color:var(--sage-deep)}
+.chip.no{background:#F6E6E4;color:var(--burg)}
+.code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--beige);padding:2px 6px;border-radius:6px;color:var(--ink)}
+
+/* Lists */
+.mrow{display:grid;grid-template-columns:1fr auto;gap:14px;padding:16px 0;border-top:1px solid var(--line)}
+.mrow:first-child{border-top:0}
+.mrow p{margin:6px 0 0;font-size:15px;line-height:1.5;word-break:break-word;white-space:pre-wrap}
+.mrow .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mact{display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:12px 10px;border-top:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em;border-top:0}
+td.num{font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--beige);border-radius:999px;overflow:hidden;width:120px}
+.bar span{display:block;height:100%;background:linear-gradient(90deg,var(--sage),var(--burg-soft))}
+
+/* Settings */
+.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.field{margin-bottom:18px}
+.field label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+.field small{display:block;color:var(--muted);font-size:13px;margin-top:6px;line-height:1.4}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.switch:first-child{border-top:0;padding-top:0}
+.switch .t{font-weight:600;font-size:14px}
+.switch .d{color:var(--muted);font-size:13px;margin-top:2px}
+.toggle{width:46px;height:26px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex-shrink:0;border:0;padding:0;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.on{background:var(--sage-deep)}
+.toggle.on::after{transform:translateX(20px)}
+.linkbox{display:flex;gap:8px}
+.linkbox input{flex:1;min-width:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:var(--muted)}
+
+.empty{text-align:center;color:var(--muted);padding:40px 12px;background:var(--cream);border-radius:12px;font-size:15px}
+.notice{font-size:13px;color:var(--muted);background:var(--sage-soft);color:var(--sage-deep);padding:12px 14px;border-radius:12px;margin-bottom:18px;line-height:1.5}
+.hide{display:none!important}
+
+/* Login */
+.login{min-height:75vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login .card{width:100%;max-width:380px;text-align:center}
+.login h2{margin:8px 0 6px;font-size:24px}
+.login p{color:var(--muted);font-size:14px;margin:0 0 20px}
+.login input{width:100%;margin-bottom:12px;text-align:center;letter-spacing:.12em}
+.login .err{color:var(--burg);font-size:13px;min-height:18px;margin-top:8px}
+
+@media (max-width:640px){
+  h1{font-size:24px}
+  .mrow{grid-template-columns:1fr}
+  .mact{justify-content:flex-start}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><span class="dot"></span>Moments Admin</div>
+    <nav class="nav">
+      <a href="invite.html" target="_blank" rel="noopener">Invitation &#8599;</a>
+      <a href="upload.html" target="_blank" rel="noopener">Guest Wall &#8599;</a>
+      <a href="display.html" target="_blank" rel="noopener" id="navDisplay">Venue Display &#8599;</a>
+      <button class="ghost small" id="logoutBtn" style="margin-left:8px">Log out</button>
+    </nav>
+  </div>
+</header>
+
+<!-- ============ LOGIN ============ -->
+<div id="login" class="login hide">
+  <div class="card">
+    <div class="brand" style="justify-content:center"><span class="dot"></span>Admin Access</div>
+    <h2>Welcome back</h2>
+    <p>Enter the admin passcode to manage uploads, messages and RSVPs.</p>
+    <input type="password" id="pass" placeholder="Admin Passcode" autocomplete="off">
+    <button id="loginBtn" style="width:100%">Unlock Dashboard</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ============ ADMIN ============ -->
+<main id="admin" class="wrap hide">
+  <h1>Event Dashboard</h1>
+  <p class="sub">Ruth & Elvis Wedding &middot; November 14, 2026</p>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="sPhotos">0</div><div class="l">Photos Uploaded</div></div>
+    <div class="stat"><div class="n" id="sPending">0</div><div class="l">Awaiting Review</div></div>
+    <div class="stat"><div class="n" id="sMsgs">0</div><div class="l">Sticky Notes</div></div>
+    <div class="stat"><div class="n" id="sRsvps">0</div><div class="l">RSVP Responses</div></div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-tab="photos">Photos</button>
+      <button class="tab" data-tab="messages">Messages</button>
+      <button class="tab" data-tab="rsvps">RSVPs</button>
+      <button class="tab" data-tab="quotas">Guest limits</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- Photos -->
+    <section id="tab-photos">
+      <div class="toolbar">
+        <div class="left">
+          <select id="photoFilter">
+            <option value="all">All photos</option>
+            <option value="pending">Pending review</option>
+            <option value="approved">Approved</option>
+            <option value="hidden">Hidden</option>
+          </select>
+        </div>
+        <div class="right">
+          <button class="sage small" id="approveAll">Approve all pending</button>
+        </div>
+      </div>
+      <div class="pgrid" id="photoGrid"></div>
+      <div class="empty hide" id="photoEmpty">No photos match this filter.</div>
+    </section>
+
+    <!-- Messages -->
+    <section id="tab-messages" class="hide">
+      <div class="toolbar">
+        <div class="left">
+          <select id="msgFilter">
+            <option value="all">All messages</option>
+            <option value="pending">Pending review</option>
+            <option value="approved">Approved</option>
+            <option value="hidden">Hidden</option>
+          </select>
+        </div>
+        <div class="right">
+          <button class="sage small" id="approveAllMsgs">Approve all pending</button>
+        </div>
+      </div>
+      <div id="msgList"></div>
+      <div class="empty hide" id="msgEmpty">No messages match this filter.</div>
+    </section>
+
+    <!-- RSVPs -->
+    <section id="tab-rsvps" class="hide">
+      <div class="stats" style="margin-bottom:18px">
+        <div class="stat"><div class="n" id="rTotal">0</div><div class="l">Total RSVPs</div></div>
+        <div class="stat"><div class="n" id="rAttending">0</div><div class="l">Attending</div></div>
+        <div class="stat"><div class="n" id="rDeclined">0</div><div class="l">Declined</div></div>
+        <div class="stat"><div class="n" id="rGuests">0</div><div class="l">Total Guests Expected</div></div>
+      </div>
+      <div class="toolbar">
+        <div class="left">
+          <strong>Guest Responses</strong>
+        </div>
+        <div class="right">
+          <button class="sage small" id="exportRsvpCsv">Download CSV</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Guest Name</th>
+              <th>Status</th>
+              <th>Count</th>
+              <th>Notes / Dietary</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rsvpBody"></tbody>
+        </table>
+      </div>
+      <div class="empty hide" id="rsvpEmpty">No RSVPs received yet.</div>
+    </section>
+
+    <!-- Quotas -->
+    <section id="tab-quotas" class="hide">
+      <div class="notice">Each guest can upload 10 photos and post 2 messages. Resets remove that guest's photos and messages to free up their limits.</div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Guest</th><th>Photos</th><th>Messages</th><th>Joined</th><th></th></tr></thead>
+          <tbody id="quotaBody"></tbody>
+        </table>
+      </div>
+      <div class="empty hide" id="quotaEmpty">No guest activity yet.</div>
+    </section>
+
+    <!-- Settings -->
+    <section id="tab-settings" class="hide">
+      <div class="setgrid">
+        <div>
+          <div class="field">
+            <label>Display screen link</label>
+            <div class="linkbox">
+              <input type="text" id="displayLink" readonly>
+              <button class="ghost" id="regen">Regenerate</button>
+            </div>
+            <small>Share this link with the venue screen operator. Regenerating creates a new token and revokes the old link.</small>
+          </div>
+          <div class="field">
+            <label for="closeDate">Uploads close on</label>
+            <input type="date" id="closeDate">
+            <small>After this date guests can still view the gallery but can no longer upload.</small>
+          </div>
+        </div>
+        <div>
+          <div class="switch">
+            <div><div class="t">Accept uploads</div><div class="d">Turn off to pause all new photos and messages.</div></div>
+            <button class="toggle" id="tUploads" aria-label="Accept uploads"></button>
+          </div>
+          <div class="switch">
+            <div><div class="t">Require approval</div><div class="d">New photos stay hidden until you approve them.</div></div>
+            <button class="toggle" id="tApproval" aria-label="Require approval"></button>
+          </div>
+          <div class="switch">
+            <div><div class="t">Display screen on</div><div class="d">Turn off to blank the venue display link.</div></div>
+            <button class="toggle" id="tDisplay" aria-label="Display screen on"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:24px">
+        <label>Export Wedding Data</label>
+        <div class="toolbar" style="margin:8px 0 0">
+          <div class="left">
+            <button class="sage" id="exportBtn">Export all data (JSON)</button>
+          </div>
+        </div>
+        <small style="color:var(--muted);font-size:13px">Exports all approved photos, messages, and RSVPs for archiving.</small>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const API_BASE = window.location.origin.startsWith('http') ? '' : 'http://localhost:3000';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = ts => ts ? new Date(ts).toLocaleString([], { dateStyle:'medium', timeStyle:'short' }) : '';
+
+let adminToken = sessionStorage.getItem('mf_admin_token') || '';
+let currentSettings = {};
+let rsvpsList = [];
+let photosList = [];
+let msgsList = [];
+
+function authHeader() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${adminToken}`
+  };
+}
+
+/* ---------- Auth ---------- */
+function isUnlocked() { return !!adminToken; }
+
+$('loginBtn').onclick = async () => {
+  const code = $('pass').value.trim();
+  $('loginErr').textContent = '';
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      adminToken = data.token;
+      sessionStorage.setItem('mf_admin_token', adminToken);
+      route();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      $('loginErr').textContent = data.error || 'That passcode is not right.';
+      $('pass').select();
+    }
+  } catch {
+    $('loginErr').textContent = 'Server connection failed.';
+  }
+};
+$('pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+
+$('logoutBtn').onclick = () => {
+  adminToken = '';
+  sessionStorage.removeItem('mf_admin_token');
+  route();
+};
+
+/* ---------- Routing ---------- */
+function route() {
+  if (!isUnlocked()) {
+    $('admin').classList.add('hide');
+    $('login').classList.remove('hide');
+    $('pass').focus();
+    return;
+  }
+  $('login').classList.add('hide');
+  $('admin').classList.remove('hide');
+  renderAll();
+}
+
+/* ---------- Stats & Summary ---------- */
+async function loadSummary() {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/summary`, { headers: authHeader() });
+    if (res.ok) {
+      const s = await res.json();
+      $('sPhotos').textContent = s.photos;
+      $('sPending').textContent = s.pendingPhotos + s.pendingMessages;
+      $('sMsgs').textContent = s.messages;
+      $('sRsvps').textContent = s.rsvps || 0;
+    }
+  } catch (err) {
+    console.warn('Summary load error', err);
+  }
+}
+
+/* ---------- Photos ---------- */
+let photoFilter = 'all';
+async function loadPhotos() {
+  try {
+    const q = photoFilter === 'all' ? '' : `?status=${photoFilter}`;
+    const res = await fetch(`${API_BASE}/api/admin/photos${q}`, { headers: authHeader() });
+    if (res.ok) {
+      photosList = await res.json();
+      renderPhotos();
+    }
+  } catch (err) {
+    console.warn('Photos load error', err);
+  }
+}
+
+function renderPhotos() {
+  const grid = $('photoGrid');
+  grid.textContent = '';
+  photosList.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'pcard';
+    const imgSrc = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+    const authorTag = p.author ? ` &middot; <b>${esc(p.author)}</b>` : '';
+    card.innerHTML = `
+      <img src="${imgSrc}" alt="Uploaded photo" loading="lazy">
+      <div class="pmeta">
+        <span><span class="code">${esc(p.guest)}</span>${authorTag}</span>
+        <span class="chip ${p.status}">${p.status}</span>
+      </div>
+      <div class="pact">
+        ${p.status !== 'approved' ? `<button class="sage small" data-act="approve" data-id="${p.id}">Approve</button>` : ''}
+        ${p.status !== 'hidden' ? `<button class="ghost small" data-act="hide" data-id="${p.id}">Hide</button>` : ''}
+        <button class="ghost small" data-act="delete" data-id="${p.id}">Delete</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+  $('photoEmpty').classList.toggle('hide', photosList.length > 0);
+  $('approveAll').disabled = !photosList.some(p => p.status === 'pending');
+}
+
+$('photoFilter').onchange = e => { photoFilter = e.target.value; loadPhotos(); };
+
+$('photoGrid').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const id = b.dataset.id;
+  const act = b.dataset.act;
+  if (act === 'delete') {
+    if (!confirm('Permanently delete this photo?')) return;
+    await fetch(`${API_BASE}/api/admin/photos/${id}`, { method: 'DELETE', headers: authHeader() });
+  } else {
+    await fetch(`${API_BASE}/api/admin/photos/${id}`, {
+      method: 'PATCH',
+      headers: authHeader(),
+      body: JSON.stringify({ status: act === 'approve' ? 'approved' : 'hidden' })
+    });
+  }
+  loadPhotos();
+  loadSummary();
+});
+
+$('approveAll').onclick = async () => {
+  const pending = photosList.filter(p => p.status === 'pending');
+  for (const p of pending) {
+    await fetch(`${API_BASE}/api/admin/photos/${p.id}`, {
+      method: 'PATCH',
+      headers: authHeader(),
+      body: JSON.stringify({ status: 'approved' })
+    });
+  }
+  loadPhotos();
+  loadSummary();
+};
+
+/* ---------- Messages ---------- */
+let msgFilter = 'all';
+async function loadMsgs() {
+  try {
+    const q = msgFilter === 'all' ? '' : `?status=${msgFilter}`;
+    const res = await fetch(`${API_BASE}/api/admin/messages${q}`, { headers: authHeader() });
+    if (res.ok) {
+      msgsList = await res.json();
+      renderMsgs();
+    }
+  } catch (err) {
+    console.warn('Messages load error', err);
+  }
+}
+
+function renderMsgs() {
+  const box = $('msgList');
+  box.textContent = '';
+  msgsList.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'mrow';
+    const authorTag = m.author ? ` &middot; <b>From: ${esc(m.author)}</b>` : '';
+    row.innerHTML = `
+      <div>
+        <div class="meta">
+          <span class="code">${esc(m.guest)}</span>
+          <span>${fmt(m.createdAt)}</span>
+          ${authorTag}
+          <span class="chip ${m.status}">${m.status}</span>
+        </div>
+        <p>${esc(m.text)}</p>
+      </div>
+      <div class="mact">
+        ${m.status !== 'approved' ? `<button class="sage small" data-act="approve" data-id="${m.id}">Approve</button>` : ''}
+        ${m.status !== 'hidden' ? `<button class="ghost small" data-act="hide" data-id="${m.id}">Hide</button>` : ''}
+        <button class="ghost small" data-act="delete" data-id="${m.id}">Delete</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  $('msgEmpty').classList.toggle('hide', msgsList.length > 0);
+  $('approveAllMsgs').disabled = !msgsList.some(m => m.status === 'pending');
+}
+
+$('msgFilter').onchange = e => { msgFilter = e.target.value; loadMsgs(); };
+
+$('msgList').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const id = b.dataset.id;
+  const act = b.dataset.act;
+  if (act === 'delete') {
+    if (!confirm('Permanently delete this message?')) return;
+    await fetch(`${API_BASE}/api/admin/messages/${id}`, { method: 'DELETE', headers: authHeader() });
+  } else {
+    await fetch(`${API_BASE}/api/admin/messages/${id}`, {
+      method: 'PATCH',
+      headers: authHeader(),
+      body: JSON.stringify({ status: act === 'approve' ? 'approved' : 'hidden' })
+    });
+  }
+  loadMsgs();
+  loadSummary();
+});
+
+$('approveAllMsgs').onclick = async () => {
+  const pending = msgsList.filter(m => m.status === 'pending');
+  for (const m of pending) {
+    await fetch(`${API_BASE}/api/admin/messages/${m.id}`, {
+      method: 'PATCH',
+      headers: authHeader(),
+      body: JSON.stringify({ status: 'approved' })
+    });
+  }
+  loadMsgs();
+  loadSummary();
+};
+
+/* ---------- RSVPs ---------- */
+async function loadRsvps() {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/rsvps`, { headers: authHeader() });
+    if (res.ok) {
+      const data = await res.json();
+      rsvpsList = data.rsvps || [];
+      $('rTotal').textContent = data.summary.totalResponses;
+      $('rAttending').textContent = data.summary.attendingYes;
+      $('rDeclined').textContent = data.summary.attendingNo;
+      $('rGuests').textContent = data.summary.totalGuests;
+      renderRsvps();
+    }
+  } catch (err) {
+    console.warn('RSVPs load error', err);
+  }
+}
+
+function renderRsvps() {
+  const body = $('rsvpBody');
+  body.textContent = '';
+  rsvpsList.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${esc(r.name)}</strong></td>
+      <td><span class="chip ${r.attending}">${r.attending === 'yes' ? 'Attending' : 'Declined'}</span></td>
+      <td class="num">${r.attending === 'yes' ? r.count : 0}</td>
+      <td>${esc(r.notes || '—')}</td>
+      <td>${fmt(r.createdAt)}</td>
+      <td style="text-align:right"><button class="ghost small" data-del-rsvp="${r.id}">Delete</button></td>`;
+    body.appendChild(tr);
+  });
+  $('rsvpEmpty').classList.toggle('hide', rsvpsList.length > 0);
+}
+
+$('rsvpBody').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-del-rsvp]'); if (!b) return;
+  if (!confirm('Remove this RSVP entry?')) return;
+  await fetch(`${API_BASE}/api/admin/rsvps/${b.dataset.delRsvp}`, { method: 'DELETE', headers: authHeader() });
+  loadRsvps();
+  loadSummary();
+});
+
+$('exportRsvpCsv').onclick = () => {
+  if (!rsvpsList.length) return alert('No RSVPs to export.');
+  const headers = ['Name', 'Attending', 'Guest Count', 'Notes', 'Date Submitted'];
+  const rows = rsvpsList.map(r => [
+    `"${(r.name || '').replace(/"/g, '""')}"`,
+    r.attending,
+    r.attending === 'yes' ? r.count : 0,
+    `"${(r.notes || '').replace(/"/g, '""')}"`,
+    `"${fmt(r.createdAt)}"`
+  ]);
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `wedding-rsvps-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+};
+
+/* ---------- Guest Limits ---------- */
+async function loadQuotas() {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/guests`, { headers: authHeader() });
+    if (res.ok) {
+      const rows = await res.json();
+      const body = $('quotaBody');
+      body.textContent = '';
+      rows.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="code">${esc(d.guest)}</span></td>
+          <td class="num">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span>${d.photos}/10</span>
+              <div class="bar"><span style="width:${Math.min(100, d.photos * 10)}%"></span></div>
+            </div>
+          </td>
+          <td class="num">${d.messages}/2</td>
+          <td>${fmt(d.joinedAt)}</td>
+          <td style="text-align:right"><button class="ghost small" data-reset="${d.id}">Reset Limits</button></td>`;
+        body.appendChild(tr);
+      });
+      $('quotaEmpty').classList.toggle('hide', rows.length > 0);
+    }
+  } catch (err) {
+    console.warn('Quotas load error', err);
+  }
+}
+
+$('quotaBody').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-reset]'); if (!b) return;
+  if (!confirm("Reset this guest's limits? Their photos and messages will be removed from the gallery.")) return;
+  await fetch(`${API_BASE}/api/admin/guests/${b.dataset.reset}/reset`, { method: 'POST', headers: authHeader() });
+  loadQuotas();
+  loadPhotos();
+  loadMsgs();
+  loadSummary();
+});
+
+/* ---------- Settings ---------- */
+async function loadSettings() {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/settings`, { headers: authHeader() });
+    if (res.ok) {
+      currentSettings = await res.json();
+      const displayUrl = `${window.location.origin}/display.html?token=${currentSettings.displayToken}`;
+      $('displayLink').value = displayUrl;
+      if ($('navDisplay')) $('navDisplay').href = displayUrl;
+      $('closeDate').value = currentSettings.closeDate || '';
+      $('tUploads').classList.toggle('on', currentSettings.uploadsOpen);
+      $('tApproval').classList.toggle('on', currentSettings.requireApproval);
+      $('tDisplay').classList.toggle('on', currentSettings.displayOn);
+    }
+  } catch (err) {
+    console.warn('Settings load error', err);
+  }
+}
+
+async function updateSetting(field, value) {
+  await fetch(`${API_BASE}/api/admin/settings`, {
+    method: 'PATCH',
+    headers: authHeader(),
+    body: JSON.stringify({ [field]: value })
+  });
+  loadSettings();
+}
+
+$('regen').onclick = async () => {
+  if (!confirm('Regenerate display link? The previous link will stop working.')) return;
+  await fetch(`${API_BASE}/api/admin/settings/regenerate-display-token`, { method: 'POST', headers: authHeader() });
+  loadSettings();
+};
+$('closeDate').onchange = e => updateSetting('closeDate', e.target.value);
+$('tUploads').onclick = () => updateSetting('uploadsOpen', !currentSettings.uploadsOpen);
+$('tApproval').onclick = () => updateSetting('requireApproval', !currentSettings.requireApproval);
+$('tDisplay').onclick = () => updateSetting('displayOn', !currentSettings.displayOn);
+
+/* ---------- Data Export ---------- */
+$('exportBtn').onclick = async () => {
+  const res = await fetch(`${API_BASE}/api/admin/export`, { headers: authHeader() });
+  if (res.ok) {
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `wedding-moments-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+  }
+};
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('#tabs .tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('#tabs .tab').forEach(x => x.classList.toggle('on', x === t));
+  ['photos','messages','rsvps','quotas','settings'].forEach(name => {
+    $('tab-' + name).classList.toggle('hide', name !== t.dataset.tab);
+  });
+  if (t.dataset.tab === 'rsvps') loadRsvps();
+  if (t.dataset.tab === 'quotas') loadQuotas();
+  if (t.dataset.tab === 'settings') loadSettings();
+});
+
+function renderAll() {
+  loadSummary();
+  loadPhotos();
+  loadMsgs();
+  loadRsvps();
+  loadQuotas();
+  loadSettings();
+}
+
+route();
+</script>
+</body>
+</html>

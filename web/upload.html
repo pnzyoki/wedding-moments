@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Make Our Wall Beautiful</title>
+<style>
+:root{
+  --sage:#8A9A7B; --sage-deep:#56654A; --sage-soft:#E1E7DA;
+  --pink:#D4A5A5; --pink-deep:#A8706F; --pink-soft:#F6E6E4;
+  --gold:#C9A24A; --cream:#FBF8F4; --ink:#2F2622; --muted:#7D716B; --line:#EADFD9;
+  --radius:18px; --shadow:0 12px 30px -14px rgba(47,38,34,.28);
+  --brick:%23B86F65; --mortar:%23EFE2DA;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;color:var(--ink);background:var(--cream);font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom,0px)}
+button,textarea{font:inherit}
+button{cursor:pointer;border:0;transition:transform .15s ease,background .2s ease,opacity .2s,color .2s}
+button:active:not(:disabled){transform:scale(.97)}
+button:disabled{opacity:.4;cursor:not-allowed}
+:focus-visible{outline:3px solid rgba(138,154,123,.7);outline-offset:2px}
+
+.hero{position:relative;overflow:hidden;text-align:center;color:#FFFDF9;padding:clamp(56px,10vw,96px) 24px clamp(84px,11vw,120px);background:radial-gradient(900px 420px at 100% 0%,rgba(212,165,165,.55),transparent 60%),linear-gradient(160deg,#A3B194 0%,var(--sage) 50%,var(--sage-deep) 100%)}
+.back{position:absolute;top:18px;left:18px;background:rgba(255,253,249,.18);color:#FFFDF9;padding:8px 14px;border-radius:999px;font-size:14px;font-weight:600}
+.back:hover{background:rgba(255,253,249,.3)}
+.eyebrow{display:inline-block;font-size:12px;letter-spacing:.18em;text-transform:uppercase;padding:8px 14px;border-radius:999px;background:rgba(255,253,249,.16);border:1px solid rgba(255,253,249,.3);margin-bottom:20px;animation:rise .6s ease both}
+.hero h1{margin:0 auto 12px;max-width:16ch;font-weight:600;font-size:clamp(34px,6vw,60px);line-height:1.05;letter-spacing:-.02em;animation:rise .7s ease .1s both}
+.hero p{margin:0 auto;max-width:46ch;font-size:clamp(16px,2vw,18px);line-height:1.55;opacity:.95;animation:rise .7s ease .2s both}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.wrap{max-width:1100px;margin:-56px auto 0;padding:0 20px 60px;position:relative}
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:clamp(22px,4vw,36px);margin-bottom:28px}
+.kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--pink-deep);margin-bottom:6px;font-weight:600}
+.pill{font-size:13px;padding:7px 12px;border-radius:999px;background:var(--sage-soft);color:var(--sage-deep);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Quote */
+.quote{background:linear-gradient(135deg,#fff 0%,var(--pink-soft) 100%);position:relative;overflow:hidden}
+.quote::before{content:"\201C";position:absolute;right:20px;top:-18px;font-family:Georgia,serif;font-size:160px;color:rgba(168,112,111,.12);line-height:1}
+blockquote{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(20px,3vw,28px);line-height:1.35;max-width:32ch;transition:opacity .35s ease,transform .35s ease}
+blockquote.swap{opacity:0;transform:translateY(6px)}
+.by{display:block;margin-top:14px;font-size:14px;color:var(--muted)}
+.quote-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:20px;flex-wrap:wrap}
+.quote-foot span{font-size:13px;color:var(--muted)}
+
+/* Buttons */
+.btn{background:var(--sage-deep);color:#FFFDF9;padding:12px 20px;border-radius:12px;font-weight:600;font-size:15px}
+.btn:hover:not(:disabled){background:var(--sage)}
+.btn.pink{background:var(--pink-deep)}
+.btn.pink:hover:not(:disabled){background:var(--pink)}
+.btn.ghost{background:transparent;color:var(--sage-deep);border:1px solid rgba(86,101,74,.35)}
+.btn.ghost:hover:not(:disabled){background:var(--sage-soft)}
+
+/* Wall intro and composer */
+.wall-intro h2{margin:0 0 6px;font-size:26px;font-weight:600;letter-spacing:-.01em}
+.wall-intro p{margin:0 0 20px;color:var(--muted);font-size:15px}
+.composer{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media (max-width:760px){.composer{grid-template-columns:1fr}}
+.panel{background:var(--cream);border:1px solid var(--line);border-radius:16px;padding:18px}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.panel-head strong{font-size:15px}
+.dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1.5px dashed rgba(138,154,123,.8);border-radius:14px;padding:20px 12px;background:#fff;text-align:center;color:var(--muted);font-size:14px;transition:border-color .2s,background .2s,transform .2s}
+.dropzone.drag{border-color:var(--pink-deep);background:var(--pink-soft);transform:scale(1.01)}
+.dropzone.full{opacity:.6}
+.dropzone span{font-size:13px}
+.progress{height:6px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:6px;width:min(260px,100%);display:none}
+.progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--sage),var(--pink-deep));transition:width .3s ease}
+.busy{font-size:13px;color:var(--sage-deep);min-height:18px}
+.input-text{width:100%;font-size:14px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:10px;box-sizing:border-box}
+.input-text:focus{outline:none;border-color:var(--sage);box-shadow:0 0 0 3px rgba(138,154,123,.2)}
+textarea{width:100%;min-height:96px;resize:vertical;font-size:16px;line-height:1.5;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+textarea:focus{outline:none;border-color:var(--sage);box-shadow:0 0 0 4px rgba(138,154,123,.2)}
+textarea:disabled{opacity:.6}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;transition:color .2s}
+.count.near{color:var(--pink-deep)}
+
+/* ===== The brick wall ===== */
+.wall{position:relative;border-radius:16px;overflow:hidden;min-height:380px;padding:34px 22px 44px;background-color:var(--brick);box-shadow:inset 0 0 40px rgba(60,20,15,.25)}
+.bricks{position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Crect width='120' height='60' fill='%23B86F65'/%3E%3Cpath d='M0 30H120M0 0H120M60 0V30M0 30V60M60 30V60' stroke='%23EFE2DA' stroke-width='3' fill='none' opacity='.85'/%3E%3C/svg%3E");background-size:120px 60px;animation:build 1.6s cubic-bezier(.3,.7,.3,1) both;pointer-events:none}
+.bricks::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(0,0,0,.12))}
+@keyframes build{from{clip-path:inset(100% 0 0 0)}to{clip-path:inset(0 0 0 0)}}
+.wall-items{position:relative;z-index:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:26px 22px;align-items:start}
+.empty{position:relative;z-index:1;text-align:center;color:#FFFDF9;background:rgba(40,20,18,.35);border-radius:12px;padding:30px 14px;font-size:15px;margin:40px auto 0;max-width:420px}
+
+/* Polaroid photo, pinned to the wall */
+.pin{position:relative;background:#fff;padding:9px 9px 10px;border-radius:4px;box-shadow:0 12px 20px -10px rgba(40,20,15,.6);transform:rotate(var(--r));transition:transform .3s ease,box-shadow .3s ease}
+.pin:hover{transform:rotate(0) scale(1.03);box-shadow:0 18px 28px -12px rgba(40,20,15,.6)}
+.pin::before{content:"";position:absolute;top:-9px;left:50%;width:56px;height:18px;margin-left:-28px;background:rgba(232,211,154,.85);transform:rotate(-3deg);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.pin img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--line);cursor:zoom-in}
+.pin-bar{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:6px}
+.like{background:var(--cream);color:var(--ink);padding:5px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.like.on{background:var(--pink-deep);color:#FFFDF9}
+.like.pop{animation:pop .35s ease}
+@keyframes pop{50%{transform:scale(1.2)}}
+.del{background:transparent;color:var(--pink-deep);padding:5px 8px;font-size:12px;font-weight:600;text-decoration:underline}
+
+/* Sticky note */
+.sticky{position:relative;background:var(--c);padding:22px 16px 16px;min-height:150px;border-radius:2px;box-shadow:0 12px 18px -10px rgba(40,20,15,.6);transform:rotate(var(--r));transition:transform .3s ease;display:flex;flex-direction:column}
+.sticky:hover{transform:rotate(0) scale(1.03)}
+.sticky::before{content:"";position:absolute;top:-8px;left:50%;width:48px;height:16px;margin-left:-24px;background:rgba(255,255,255,.55);transform:rotate(2deg)}
+.sticky p{margin:0;font-family:"Segoe Print","Bradley Hand","Comic Sans MS","Brush Script MT",cursive;font-size:17px;line-height:1.35;color:#3A2D28;white-space:pre-wrap;word-break:break-word;flex:1}
+.sticky small{display:block;margin-top:10px;font-size:11px;color:rgba(58,45,40,.65)}
+
+/* New items drop onto the wall */
+.enter{animation:drop .75s cubic-bezier(.3,1.35,.5,1) backwards}
+@keyframes drop{from{opacity:0;transform:translateY(-70px) rotate(var(--r)) scale(.92)}to{opacity:1;transform:translateY(0) rotate(var(--r))}}
+
+/* Lightbox */
+.lightbox{position:fixed;inset:0;background:rgba(40,32,30,.9);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;opacity:0;pointer-events:none;transition:opacity .25s ease}
+.lightbox.open{opacity:1;pointer-events:auto}
+.lightbox img{max-width:100%;max-height:86vh;border-radius:6px;box-shadow:0 30px 60px rgba(0,0,0,.4);background:#fff;padding:8px}
+.lb-btn{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,253,249,.14);color:#FFFDF9;font-size:22px;padding:0}
+.lb-btn:hover{background:rgba(255,253,249,.26)}
+.lb-prev{left:18px}.lb-next{right:18px}
+.lb-close{position:absolute;top:18px;right:18px;width:44px;height:44px;border-radius:50%;background:rgba(255,253,249,.14);color:#FFFDF9;font-size:20px;padding:0}
+.lb-count{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:#FFFDF9;font-size:14px;opacity:.8}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#FFFDF9;padding:12px 18px;border-radius:12px;font-size:14px;box-shadow:0 14px 30px -10px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:60;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.bad{background:var(--pink-deep)}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:0 20px 40px}
+@media (max-width:600px){.wall{padding:26px 14px 34px}.wall-items{gap:22px 14px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===== Classy background ===== */
+:root{--paper:radial-gradient(1000px 600px at 0% -10%,rgba(138,154,123,.16),transparent 60%),radial-gradient(900px 600px at 100% 10%,rgba(212,165,165,.18),transparent 60%),linear-gradient(180deg,#FBF8F4 0%,#F3ECE4 100%)}
+body{background:var(--paper) fixed}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.6;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E")}
+
+.back{position:absolute;top:18px;left:18px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:rgba(255,253,249,.18);color:#FFFDF9;padding:9px 16px 9px 12px;border-radius:999px;font-size:14px;font-weight:600;border:1px solid rgba(255,253,249,.35);overflow:hidden;isolation:isolate;transition:transform .2s,background .25s,box-shadow .25s}
+.back::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);transition:transform .6s ease;z-index:-1}
+.back:hover::before{transform:translateX(120%)}
+.back .arr{display:inline-block;transition:transform .3s cubic-bezier(.3,.8,.3,1)}
+.back:hover{background:rgba(255,253,249,.3);transform:translateY(-2px);box-shadow:0 10px 20px -10px rgba(0,0,0,.4)}
+.back:hover .arr{transform:translateX(-5px)}
+.back:active{transform:scale(.97)}
+.back:focus-visible{outline:3px solid #fff;outline-offset:3px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <a class="back" href="invite.html"><span class="arr">&#8592;</span><span>Back to invitation</span></a>
+  <span class="eyebrow">Make our wall beautiful</span>
+  <h1>Share your favourite moments with us</h1>
+  <p>Pin up to 10 photos and stick up to two notes on the wall.</p>
+</header>
+
+<main class="wrap">
+
+  <section class="card quote" aria-live="polite">
+    <div class="kicker">A thought for today</div>
+    <blockquote id="quoteText">&nbsp;</blockquote>
+    <span class="by" id="quoteBy"></span>
+    <div class="quote-foot">
+      <span>A new quote each time you visit</span>
+      <button class="btn ghost" id="nextQuote">Another quote</button>
+    </div>
+  </section>
+
+  <section class="card" id="wallSection">
+    <div class="wall-intro">
+      <div class="kicker">Make our wall beautiful</div>
+      <h2>Pin your photos and leave a note</h2>
+      <p>Photos are pinned to the wall, and messages go up as sticky notes.</p>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" multiple hidden>
+    <label for="msgText" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Your message</label>
+
+    <div class="composer">
+      <div class="panel">
+        <div class="panel-head"><strong>Pin a photo</strong><span class="pill" id="photoPill">10 of 10 left</span></div>
+        <input type="text" id="photoAuthor" class="input-text" maxlength="50" placeholder="Your name (optional)">
+        <div class="dropzone" id="dropzone">
+          <strong style="color:var(--ink)">Drop photos here</strong>
+          <span>or choose them from your phone</span>
+          <button class="btn" id="pickBtn">Choose photos</button>
+          <div class="progress" id="progress"><span id="progressBar"></span></div>
+          <div class="busy" id="busy"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><strong>Write a sticky note</strong><span class="pill" id="msgPill">2 of 2 left</span></div>
+        <input type="text" id="msgAuthor" class="input-text" maxlength="50" placeholder="Signed by (optional, e.g. Aunt Sarah)">
+        <textarea id="msgText" maxlength="150" placeholder="Write something kind, funny or memorable..."></textarea>
+        <div class="row">
+          <span class="count" id="charCount">0 / 150</span>
+          <button class="btn pink" id="postBtn">Stick it on the wall</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="wall" id="wall">
+      <div class="bricks" aria-hidden="true"></div>
+      <div class="wall-items" id="wallItems"></div>
+      <div class="empty" id="wallEmpty">The wall is waiting for its first photo or note.</div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Thank you for being part of this day &middot; Ruth &amp; Elvis</p>
+  <p style="margin-top:8px;font-size:13px;opacity:.85">
+    <a href="invite.html" style="color:inherit;text-decoration:underline;margin-right:16px">&#8592; Back to invitation</a>
+    <a href="display.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Live venue display &#8599;</a>
+  </p>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer">
+  <button class="lb-close" id="lbClose" aria-label="Close">&#10005;</button>
+  <button class="lb-btn lb-prev" id="lbPrev" aria-label="Previous photo">&#8249;</button>
+  <img id="lbImg" alt="">
+  <button class="lb-btn lb-next" id="lbNext" aria-label="Next photo">&#8250;</button>
+  <div class="lb-count" id="lbCount"></div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const MAX_PHOTOS = 10, MAX_MSGS = 2, MAX_CHARS = 150, MAX_EDGE = 1280;
+const STICKY_COLOURS = ['#F5E7A8', '#F4C9C4', '#CFDCC0', '#F9E4DF'];
+const API_BASE = window.location.origin.startsWith('http') ? '' : 'http://localhost:3000';
+
+// ---------- Quotes (fetched dynamically from API) ----------
+async function loadQuote(animate = true) {
+  const el = $('quoteText');
+  const update = q => {
+    el.textContent = '\u201C' + q.text + '\u201D';
+    $('quoteBy').textContent = '\u2014 ' + q.by;
+    el.classList.remove('swap');
+  };
+  try {
+    const res = await fetch(`${API_BASE}/api/quote`);
+    if (res.ok) {
+      const q = await res.json();
+      if (animate) { el.classList.add('swap'); setTimeout(() => update(q), 250); }
+      else update(q);
+      return;
+    }
+  } catch (_) {}
+  update({ text: 'Love is patient, love is kind.', by: '1 Corinthians 13:4' });
+}
+$('nextQuote').onclick = () => loadQuote(true);
+
+// ---------- Storage & Auth ----------
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }
+};
+
+let guestToken = store.get('mf_guest_token', '');
+let myUploadedPhotos = new Set(store.get('mf_my_photos', []));
+let myLikedPhotos = new Set(store.get('mf_my_likes', []));
+let myPhotosCount = 0;
+let myMsgsCount = 0;
+
+let photos = [];
+let msgs = [];
+
+let toastTimer;
+function toast(text, bad = false) {
+  const t = $('toast');
+  t.textContent = text; t.classList.toggle('bad', bad); t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// Join event to obtain a valid guest token
+async function getGuestToken() {
+  if (guestToken) return guestToken;
+  try {
+    const res = await fetch(`${API_BASE}/api/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 'ruthandelvis2026' })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      guestToken = data.token;
+      store.set('mf_guest_token', guestToken);
+      return guestToken;
+    }
+  } catch (err) {
+    console.warn('Could not connect to backend', err);
+  }
+  return null;
+}
+
+// Check current quota usage
+async function refreshQuota() {
+  const token = await getGuestToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const q = await res.json();
+      myPhotosCount = q.photos.used;
+      myMsgsCount = q.messages.used;
+      $('photoPill').textContent = `${q.photos.left} of ${MAX_PHOTOS} left`;
+      $('msgPill').textContent = `${q.messages.left} of ${MAX_MSGS} left`;
+      $('pickBtn').disabled = q.photos.left <= 0 || !q.uploadsOpen;
+      $('dropzone').classList.toggle('full', q.photos.left <= 0);
+      $('postBtn').disabled = q.messages.left <= 0 || !q.uploadsOpen;
+      $('msgText').disabled = q.messages.left <= 0 || !q.uploadsOpen;
+      if (!q.uploadsOpen) {
+        $('busy').textContent = 'Uploads are currently paused.';
+      } else if (q.photos.left <= 0) {
+        $('busy').textContent = 'You have used all 10 photos. Thank you!';
+      } else {
+        $('busy').textContent = '';
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch quota', err);
+  }
+}
+
+// Fetch approved photos and messages from server
+async function fetchWallItems() {
+  try {
+    const [pRes, mRes] = await Promise.all([
+      fetch(`${API_BASE}/api/photos`),
+      fetch(`${API_BASE}/api/messages`)
+    ]);
+    if (pRes.ok) photos = await pRes.json();
+    if (mRes.ok) msgs = await mRes.json();
+    renderWall();
+  } catch (err) {
+    console.warn('Could not fetch wall feed', err);
+  }
+}
+
+// Canvas-based image compression returning a Blob
+function compressToBlob(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('Compression failed'));
+      }, 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Unreadable')); };
+    img.src = url;
+  });
+}
+
+// ---------- The wall ----------
+const seen = new Set();
+
+function tiltFor(id) {
+  let h = 0;
+  for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return ((Math.abs(h) % 7) - 3) + 'deg';
+}
+
+function wallEntries() {
+  const items = [
+    ...photos.map(p => ({ kind: 'photo', ts: p.createdAt || 0, data: p })),
+    ...msgs.map(m => ({ kind: 'note', ts: m.createdAt || 0, data: m }))
+  ];
+  return items.sort((a, b) => a.ts - b.ts);
+}
+
+function renderWall() {
+  const wrap = $('wallItems');
+  wrap.textContent = '';
+  let newIndex = 0;
+  const entries = wallEntries();
+  entries.forEach(({ kind, data }) => {
+    const isNew = !seen.has(data.id);
+    if (isNew) seen.add(data.id);
+    const el = kind === 'photo' ? buildPin(data) : buildNote(data);
+    el.style.setProperty('--r', tiltFor(data.id));
+    if (isNew) {
+      el.classList.add('enter');
+      el.style.animationDelay = (newIndex * 0.12) + 's';
+      newIndex++;
+    }
+    wrap.appendChild(el);
+  });
+  $('wallEmpty').style.display = entries.length ? 'none' : 'block';
+}
+
+function buildPin(p) {
+  const isMine = myUploadedPhotos.has(p.id);
+  const liked = myLikedPhotos.has(p.id);
+  const el = document.createElement('div');
+  el.className = 'pin';
+  const img = document.createElement('img');
+  img.src = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+  img.alt = p.author ? `Photo by ${p.author}` : 'Shared moment';
+  img.loading = 'lazy';
+  img.onclick = () => openLightbox(p.id);
+
+  const bar = document.createElement('div');
+  bar.className = 'pin-bar';
+  const like = document.createElement('button');
+  like.className = 'like' + (liked ? ' on' : '');
+  like.setAttribute('aria-pressed', String(liked));
+  like.setAttribute('aria-label', liked ? 'Unlike photo' : 'Like photo');
+  like.textContent = (liked ? '\u2665 ' : '\u2661 ') + (p.likes || 0);
+  like.onclick = () => toggleLike(p.id, !liked);
+  bar.appendChild(like);
+
+  if (p.author) {
+    const authorSpan = document.createElement('span');
+    authorSpan.style.fontSize = '11px';
+    authorSpan.style.color = 'var(--muted)';
+    authorSpan.style.overflow = 'hidden';
+    authorSpan.style.textOverflow = 'ellipsis';
+    authorSpan.style.whiteSpace = 'nowrap';
+    authorSpan.style.maxWidth = '85px';
+    authorSpan.textContent = p.author;
+    bar.appendChild(authorSpan);
+  }
+
+  if (isMine) {
+    const del = document.createElement('button');
+    del.className = 'del'; del.textContent = 'Remove';
+    del.onclick = () => removePhoto(p.id);
+    bar.appendChild(del);
+  }
+  el.append(img, bar);
+  return el;
+}
+
+function buildNote(m) {
+  const el = document.createElement('div');
+  el.className = 'sticky';
+  el.style.setProperty('--c', STICKY_COLOURS[Math.abs(tiltFor(m.id).length + m.text.length) % STICKY_COLOURS.length]);
+  const p = document.createElement('p');
+  p.textContent = m.text;
+  const s = document.createElement('small');
+  const d = m.createdAt ? new Date(m.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+  s.textContent = m.author ? `\u2014 ${m.author} (${d})` : d;
+  el.append(p, s);
+  return el;
+}
+
+async function toggleLike(id, adding) {
+  const token = await getGuestToken();
+  if (!token) return toast('Please join with the event code first.', true);
+  try {
+    const res = await fetch(`${API_BASE}/api/photos/${id}/like`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.liked) myLikedPhotos.add(id);
+      else myLikedPhotos.delete(id);
+      store.set('mf_my_likes', [...myLikedPhotos]);
+      const p = photos.find(x => x.id === id);
+      if (p) p.likes = data.likes;
+      renderWall();
+    }
+  } catch (err) {
+    toast('Could not update like.', true);
+  }
+}
+
+async function removePhoto(id) {
+  const token = await getGuestToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/photos/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      myUploadedPhotos.delete(id);
+      store.set('mf_my_photos', [...myUploadedPhotos]);
+      photos = photos.filter(p => p.id !== id);
+      renderWall();
+      await refreshQuota();
+      toast('Photo removed. Slot freed up.');
+    }
+  } catch (err) {
+    toast('Could not remove photo.', true);
+  }
+}
+
+async function addFiles(files) {
+  const images = files.filter(f => f.type.startsWith('image/'));
+  if (!images.length) return toast('Please choose image files.', true);
+
+  const token = await getGuestToken();
+  if (!token) return toast('Could not connect to event. Check connection.', true);
+
+  const left = MAX_PHOTOS - myPhotosCount;
+  if (left <= 0) return toast('You have used all 10 photos.', true);
+  const take = images.slice(0, left);
+  if (images.length > left) toast(`Only ${left} more allowed, so ${take.length} will be pinned.`, true);
+
+  const author = $('photoAuthor').value.trim();
+  const bar = $('progressBar');
+  $('progress').style.display = 'block';
+
+  let uploadedCount = 0;
+  for (let i = 0; i < take.length; i++) {
+    $('busy').textContent = `Uploading ${i + 1} of ${take.length}...`;
+    bar.style.width = (i / take.length * 100) + '%';
+    try {
+      const blob = await compressToBlob(take[i]);
+      const fd = new FormData();
+      fd.append('photo', blob, 'moment.jpg');
+      if (author) fd.append('author', author);
+
+      const res = await fetch(`${API_BASE}/api/photos`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd
+      });
+      if (res.ok) {
+        const item = await res.json();
+        myUploadedPhotos.add(item.id);
+        store.set('mf_my_photos', [...myUploadedPhotos]);
+        uploadedCount++;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast(err.error || 'Upload error.', true);
+      }
+    } catch {
+      toast('One file could not be processed.', true);
+    }
+  }
+  bar.style.width = '100%';
+  setTimeout(() => { $('progress').style.display = 'none'; bar.style.width = '0%'; }, 400);
+  $('busy').textContent = '';
+
+  if (uploadedCount > 0) {
+    toast(uploadedCount === 1 ? 'Photo pinned to the wall!' : `${uploadedCount} photos pinned!`);
+    await refreshQuota();
+    await fetchWallItems();
+  }
+}
+
+$('pickBtn').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => { const f = Array.from(e.target.files); e.target.value = ''; addFiles(f); };
+const dz = $('dropzone');
+['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+dz.addEventListener('drop', e => addFiles(Array.from(e.dataTransfer.files)));
+
+// ---------- Lightbox ----------
+let lbIdx = 0;
+function openLightbox(id) {
+  lbIdx = photos.findIndex(p => p.id === id);
+  if (lbIdx < 0) return;
+  showLb(lbIdx);
+  $('lightbox').classList.add('open');
+  $('lbClose').focus();
+}
+function showLb(i) {
+  lbIdx = (i + photos.length) % photos.length;
+  const p = photos[lbIdx];
+  $('lbImg').src = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+  $('lbCount').textContent = `${lbIdx + 1} of ${photos.length}`;
+}
+function closeLb() { $('lightbox').classList.remove('open'); }
+$('lbPrev').onclick = e => { e.stopPropagation(); showLb(lbIdx - 1); };
+$('lbNext').onclick = e => { e.stopPropagation(); showLb(lbIdx + 1); };
+$('lbClose').onclick = closeLb;
+$('lightbox').addEventListener('click', e => { if (e.target.id === 'lightbox') closeLb(); });
+document.addEventListener('keydown', e => {
+  if (!$('lightbox').classList.contains('open')) return;
+  if (e.key === 'Escape') closeLb();
+  if (e.key === 'ArrowLeft') showLb(lbIdx - 1);
+  if (e.key === 'ArrowRight') showLb(lbIdx + 1);
+});
+
+// ---------- Sticky notes ----------
+$('msgText').addEventListener('input', () => {
+  const n = $('msgText').value.length, c = $('charCount');
+  c.textContent = `${n} / ${MAX_CHARS}`;
+  c.classList.toggle('near', n >= MAX_CHARS - 20);
+});
+
+$('postBtn').onclick = async () => {
+  const text = $('msgText').value.trim();
+  const author = $('msgAuthor').value.trim();
+  if (!text) return toast('Please write a note first.', true);
+  if (text.length > MAX_CHARS) return toast(`Keep it under ${MAX_CHARS} characters.`, true);
+
+  const token = await getGuestToken();
+  if (!token) return toast('Could not connect to event.', true);
+
+  const btn = $('postBtn');
+  btn.disabled = true;
+  btn.textContent = 'Posting...';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ text, author })
+    });
+    if (res.ok) {
+      $('msgText').value = '';
+      $('msgAuthor').value = '';
+      $('charCount').textContent = `0 / ${MAX_CHARS}`;
+      $('charCount').classList.remove('near');
+      toast('Your note is on the wall!');
+      await refreshQuota();
+      await fetchWallItems();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      toast(err.error || 'Could not post message.', true);
+    }
+  } catch {
+    toast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Stick it on the wall';
+  }
+};
+
+// ---------- Boot ----------
+loadQuote(false);
+
+// Pre-fill author name from RSVP or past usage, and keep synced
+const savedRsvp = store.get('mf_rsvp', null);
+const rememberedAuthor = store.get('mf_author_name', savedRsvp?.name || '');
+if (rememberedAuthor) {
+  $('photoAuthor').value = rememberedAuthor;
+  $('msgAuthor').value = rememberedAuthor;
+}
+const syncAuthor = e => {
+  const val = e.target.value;
+  $('photoAuthor').value = val;
+  $('msgAuthor').value = val;
+  store.set('mf_author_name', val.trim());
+};
+$('photoAuthor').addEventListener('input', syncAuthor);
+$('msgAuthor').addEventListener('input', syncAuthor);
+
+(async () => {
+  await getGuestToken();
+  await refreshQuota();
+  await fetchWallItems();
+  setInterval(fetchWallItems, 10000);
+})();
+</script>
+</body>
+</html>

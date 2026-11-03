@@ -1,0 +1,20 @@
+{
+  "name": "moments-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared backend for the private event photo and message gallery",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check quotes.js && node --check db.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

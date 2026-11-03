@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/", "destination": "/web/invite.html" },
+    { "source": "/invite", "destination": "/web/invite.html" },
+    { "source": "/upload", "destination": "/web/upload.html" },
+    { "source": "/display", "destination": "/web/display.html" },
+    { "source": "/admin", "destination": "/web/admin.html" }
+  ]
+}
