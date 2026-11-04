@@ -287,6 +287,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
       <div class="alert" id="rsvpAlert"></div>
     </div>
     <div id="rsvpDone" class="rsvp-done" hidden></div>
+    <p class="note" id="rsvpConfirmedNote" hidden>Your reply is confirmed with the couple.</p>
   </section>
 
 </main>
@@ -443,21 +444,25 @@ function renderRsvp() {
   const saved = store.get('mf_rsvp', null);
   $('rsvpForm').hidden = !!saved;
   $('rsvpDone').hidden = !saved;
+  const confirmedNote = $('rsvpConfirmedNote');
+  if (confirmedNote) confirmedNote.hidden = !saved;
+
   if (saved) {
     if (saved.attend === 'yes') {
-      const guestText = saved.count === 2 ? '2 guests (you + 1 guest)' : '1 guest (just yourself)';
+      const countNum = Number(saved.count) || 1;
+      const guestText = countNum === 2 ? '2 guests (Myself + 1 guest)' : '1 guest (Just myself)';
       $('rsvpDone').innerHTML = `
         <div style="font-weight:600;font-size:16px;margin-bottom:6px">Thank you, ${esc(saved.name)}!</div>
-        <div>We are delighted you will celebrate with us for <strong>${guestText}</strong>.</div>
-        <p style="margin:8px 0 0;font-size:13px;opacity:.9">Your reply has been confirmed with the couple.</p>
+        <div style="font-size:15px;line-height:1.5">We are delighted you can join us with <strong>${guestText}</strong>.</div>
+        <div style="margin-top:6px;font-size:14px;color:var(--sage-deep);font-weight:600">&bull; Your reply has been confirmed with the couple.</div>
         <div style="margin-top:12px;padding:10px 12px;background:#FFF9EE;border:1px solid #EAC878;border-radius:10px;color:#6A4B10;font-size:13px;line-height:1.45">
           <strong>Important Reminder:</strong> All visitors must carry their original <strong>National ID or Passport</strong> for security entry at the Ruiru Prison Staff Training College gate.
         </div>`;
     } else {
       $('rsvpDone').innerHTML = `
         <div style="font-weight:600;font-size:16px;margin-bottom:6px">Thank you, ${esc(saved.name)}.</div>
-        <div>We are sorry you cannot make it, and we warmly appreciate you letting us know.</div>
-        <p style="margin:8px 0 0;font-size:13px;opacity:.9">Your reply has been confirmed with the couple.</p>`;
+        <div style="font-size:15px;line-height:1.5">We are sorry you cannot make it, and we appreciate you letting us know.</div>
+        <div style="margin-top:6px;font-size:14px;color:var(--sage-deep);font-weight:600">&bull; Your reply has been confirmed with the couple.</div>`;
     }
   } else {
     $('rsvpDone').textContent = '';
