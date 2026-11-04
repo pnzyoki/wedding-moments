@@ -66,10 +66,12 @@ function safeEqual(a, b) {
 // Initialize default event settings (only when a database is available)
 try {
   await db.initDefaultSettings({
-    uploads_open: '1',
+    uploads_open: '0',
+    open_date: '2026-11-14',
+    close_date: '',
+    lock_message: 'Uploads will open on our wedding day (November 14, 2026). We cannot wait to see your photos!',
     require_approval: '1',
     display_on: '1',
-    close_date: '',
     display_token: newToken().slice(0, 16)
   });
 } catch (err) {
@@ -78,9 +80,24 @@ try {
 }
 
 async function uploadBlock() {
-  if (await db.getSetting('uploads_open') !== '1') return 'Uploads are paused right now.';
+  if (await db.getSetting('uploads_open') !== '1') {
+    const customMsg = await db.getSetting('lock_message');
+    return customMsg || 'Photo and note uploads are currently locked by the organizers.';
+  }
+  const openDate = await db.getSetting('open_date');
+  if (openDate) {
+    const openTime = Date.parse(openDate);
+    if (!isNaN(openTime) && now() < openTime) {
+      const customMsg = await db.getSetting('lock_message');
+      if (customMsg) return customMsg;
+      const d = new Date(openTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      return `Uploads open on ${d}. Thank you for waiting!`;
+    }
+  }
   const close = await db.getSetting('close_date');
-  if (close && now() > Date.parse(close) + 86_399_999) return 'Uploads have closed. Thank you for sharing!';
+  if (close && now() > Date.parse(close) + 86_399_999) {
+    return 'Uploads have closed. Thank you for sharing!';
+  }
   return null;
 }
 
@@ -216,14 +233,16 @@ app.post('/api/join', rateLimit('join', 20), async (req, res) => {
   res.status(201).json({ token, limits: { photos: LIMITS.photos, messages: LIMITS.messages, chars: LIMITS.chars } });
 });
 
-// Current Guest Quota
+// Current Guest Quota & Upload Status
 app.get('/api/me', requireGuest, async (req, res) => {
   const quota = await db.getGuestQuota(req.guestId, LIMITS);
+  const block = await uploadBlock();
   res.json({
     guestId: req.guestId,
     photos: quota.photos,
     messages: quota.messages,
-    uploadsOpen: (await uploadBlock()) === null
+    uploadsOpen: block === null,
+    lockReason: block || ''
   });
 });
 
@@ -446,20 +465,29 @@ app.post('/api/admin/guests/:id/reset', requireAdmin, async (req, res) => {
 // Admin Settings
 app.get('/api/admin/settings', requireAdmin, async (_req, res) => {
   try {
+    const block = await uploadBlock();
     res.json({
       uploadsOpen: (await db.getSetting('uploads_open')) === '1',
+      openDate: (await db.getSetting('open_date')) || '',
+      closeDate: (await db.getSetting('close_date')) || '',
+      lockMessage: (await db.getSetting('lock_message')) || '',
+      isLocked: block !== null,
+      lockReason: block || '',
       requireApproval: (await db.getSetting('require_approval')) === '1',
       displayOn: (await db.getSetting('display_on')) === '1',
-      closeDate: (await db.getSetting('close_date')) || '',
       displayToken: (await db.getSetting('display_token')) || 'default-token',
       dbDriver: db.isUsingSupabase() ? 'supabase' : 'sqlite'
     });
   } catch (err) {
     res.json({
-      uploadsOpen: true,
+      uploadsOpen: false,
+      openDate: '2026-11-14',
+      closeDate: '',
+      lockMessage: '',
+      isLocked: true,
+      lockReason: 'Uploads are locked.',
       requireApproval: true,
       displayOn: true,
-      closeDate: '',
       displayToken: 'default-token',
       dbDriver: 'none'
     });
@@ -468,9 +496,11 @@ app.get('/api/admin/settings', requireAdmin, async (_req, res) => {
 
 const SETTING_KEYS = {
   uploadsOpen: ['uploads_open', v => (v ? '1' : '0')],
+  openDate: ['open_date', v => (/^\d{4}-\d{2}-\d{2}$/.test(v) || v === '' ? v : null)],
+  closeDate: ['close_date', v => (/^\d{4}-\d{2}-\d{2}$/.test(v) || v === '' ? v : null)],
+  lockMessage: ['lock_message', v => sanitize(v ?? '', 200)],
   requireApproval: ['require_approval', v => (v ? '1' : '0')],
-  displayOn: ['display_on', v => (v ? '1' : '0')],
-  closeDate: ['close_date', v => (/^\d{4}-\d{2}-\d{2}$/.test(v) || v === '' ? v : null)]
+  displayOn: ['display_on', v => (v ? '1' : '0')]
 };
 
 app.patch('/api/admin/settings', requireAdmin, async (req, res) => {
@@ -478,7 +508,7 @@ app.patch('/api/admin/settings', requireAdmin, async (req, res) => {
     const rule = SETTING_KEYS[field];
     if (!rule) continue;
     const stored = rule[1](value);
-    if (stored === null) return res.status(400).json({ error: 'Close date must be YYYY-MM-DD.' });
+    if (stored === null) return res.status(400).json({ error: 'Dates must be formatted as YYYY-MM-DD.' });
     await db.putSetting(rule[0], stored);
   }
   res.json({ ok: true });
