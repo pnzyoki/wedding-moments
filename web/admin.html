@@ -105,6 +105,15 @@ td.num{font-variant-numeric:tabular-nums}
 .notice{font-size:13px;color:var(--muted);background:var(--sage-soft);color:var(--sage-deep);padding:12px 14px;border-radius:12px;margin-bottom:18px;line-height:1.5}
 .hide{display:none!important}
 
+.dash-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.lock-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:0;transition:all .2s ease;box-shadow:var(--shadow)}
+.lock-btn.locked{background:var(--burg);color:#fff}
+.lock-btn.locked:hover{background:var(--burg-soft)}
+.lock-btn.open{background:var(--sage-deep);color:#fff}
+.lock-btn.open:hover{background:var(--sage)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#FFFDF9;padding:12px 18px;border-radius:12px;font-size:14px;box-shadow:0 14px 30px -10px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:300;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
 /* Login */
 .login{min-height:75vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .login .card{width:100%;max-width:380px;text-align:center}
@@ -148,8 +157,18 @@ td.num{font-variant-numeric:tabular-nums}
 
 <!-- ============ ADMIN ============ -->
 <main id="admin" class="wrap hide">
-  <h1>Event Dashboard</h1>
-  <p class="sub">Ruth & Elvis Wedding &middot; November 14, 2026 <span id="uploadBadge" class="chip" style="margin-left:12px;vertical-align:middle"></span></p>
+  <div class="dash-head">
+    <div>
+      <h1>Event Dashboard</h1>
+      <p class="sub" style="margin-bottom:0">Ruth &amp; Elvis Wedding &middot; November 14, 2026</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button id="quickLockBtn" class="lock-btn open">
+        <span id="quickLockIcon">🔒</span>
+        <span id="quickLockText">Lock Uploads</span>
+      </button>
+    </div>
+  </div>
   <div id="dbBanner" class="notice hide"></div>
 
   <div class="stats">
@@ -323,6 +342,21 @@ let currentSettings = {};
 let rsvpsList = [];
 let photosList = [];
 let msgsList = [];
+
+let toastTimer;
+function toast(msg) {
+  let t = $('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
 
 function authHeader() {
   return {
@@ -698,10 +732,17 @@ async function loadSettings() {
       $('tDisplay').classList.toggle('on', currentSettings.displayOn);
 
       const isLocked = currentSettings.isLocked;
-      const chip = $('uploadBadge');
-      if (chip) {
-        chip.className = `chip ${isLocked ? 'no' : 'yes'}`;
-        chip.textContent = isLocked ? '🔒 Uploads Locked' : '🟢 Uploads Open';
+      const qBtn = $('quickLockBtn');
+      if (qBtn) {
+        if (isLocked) {
+          qBtn.className = 'lock-btn locked';
+          $('quickLockIcon').textContent = '🔒';
+          $('quickLockText').textContent = 'Uploads Locked · Click to Unlock';
+        } else {
+          qBtn.className = 'lock-btn open';
+          $('quickLockIcon').textContent = '🔓';
+          $('quickLockText').textContent = 'Uploads Open · Click to Lock';
+        }
       }
       const stText = $('lockStatusText');
       if (stText) {
@@ -724,19 +765,37 @@ async function updateSetting(field, value) {
   loadSettings();
 }
 
+$('quickLockBtn').onclick = async () => {
+  const willUnlock = currentSettings.isLocked;
+  $('quickLockBtn').disabled = true;
+  $('quickLockText').textContent = willUnlock ? 'Unlocking...' : 'Locking...';
+  
+  await fetch(`${API_BASE}/api/admin/settings`, {
+    method: 'PATCH',
+    headers: authHeader(),
+    body: JSON.stringify({ uploadsOpen: willUnlock })
+  });
+  
+  await loadSettings();
+  $('quickLockBtn').disabled = false;
+  toast(willUnlock
+    ? '🟢 Uploads UNLOCKED — guests can now upload photos and notes!'
+    : '🔒 Uploads LOCKED — guests cannot upload.');
+};
+
 $('regen').onclick = async () => {
   if (!confirm('Regenerate display link? The previous link will stop working.')) return;
   await fetch(`${API_BASE}/api/admin/settings/regenerate-display-token`, { method: 'POST', headers: authHeader() });
   loadSettings();
 };
-$('uploadBadge').onclick = () => {
-  const t = document.querySelector('#tabs .tab[data-tab="settings"]');
-  if (t) t.click();
-};
 $('openDate').onchange = e => updateSetting('openDate', e.target.value);
 $('closeDate').onchange = e => updateSetting('closeDate', e.target.value);
 $('lockMessage').onchange = e => updateSetting('lockMessage', e.target.value);
-$('tUploads').onclick = () => updateSetting('uploadsOpen', !currentSettings.uploadsOpen);
+$('tUploads').onclick = async () => {
+  const nextVal = !currentSettings.uploadsOpen;
+  await updateSetting('uploadsOpen', nextVal);
+  toast(nextVal ? '🟢 Uploads UNLOCKED' : '🔒 Uploads LOCKED');
+};
 $('tApproval').onclick = () => updateSetting('requireApproval', !currentSettings.requireApproval);
 $('tDisplay').onclick = () => updateSetting('displayOn', !currentSettings.displayOn);
 
