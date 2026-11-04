@@ -163,9 +163,8 @@ td.num{font-variant-numeric:tabular-nums}
       <p class="sub" style="margin-bottom:0">Ruth &amp; Elvis Wedding &middot; November 14, 2026</p>
     </div>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <button id="quickLockBtn" class="lock-btn open">
-        <span id="quickLockIcon">🔒</span>
-        <span id="quickLockText">Lock Uploads</span>
+      <button class="sage small" id="topDownloadZipBtn" style="padding:10px 16px;display:inline-flex;align-items:center;gap:8px">
+        <span>📥</span><span>Download Photos (ZIP)</span>
       </button>
     </div>
   </div>
@@ -199,6 +198,7 @@ td.num{font-variant-numeric:tabular-nums}
           </select>
         </div>
         <div class="right">
+          <button class="ghost small" id="photoZipBtn">📥 Download ZIP</button>
           <button class="sage small" id="approveAll">Approve all pending</button>
         </div>
       </div>
@@ -283,30 +283,8 @@ td.num{font-variant-numeric:tabular-nums}
             </div>
             <small>Share this link with the venue screen operator. Regenerating creates a new token and revokes the old link.</small>
           </div>
-          <div class="field">
-            <label for="openDate">Uploads open on (wedding date)</label>
-            <input type="date" id="openDate">
-            <small>Guests cannot upload photos or notes before this date. Keeps the wall locked until the wedding.</small>
-          </div>
-          <div class="field">
-            <label for="closeDate">Uploads close on (optional)</label>
-            <input type="date" id="closeDate">
-            <small>After this date guests can still view the gallery but can no longer upload.</small>
-          </div>
-          <div class="field">
-            <label for="lockMessage">Custom locked message</label>
-            <input type="text" id="lockMessage" placeholder="Uploads will open on our wedding day (November 14, 2026).">
-            <small>Displayed to guests on the wall while uploads are locked or before the opening date.</small>
-          </div>
         </div>
         <div>
-          <div class="switch">
-            <div><div class="t">Master upload switch</div><div class="d">Turn off to immediately lock all uploads regardless of date.</div></div>
-            <button class="toggle" id="tUploads" aria-label="Accept uploads"></button>
-          </div>
-          <div style="margin:10px 0 16px;padding:12px 14px;border-radius:10px;background:var(--cream);font-size:13px;border:1px solid var(--line)" id="lockStatusBox">
-            <strong>Current Guest Status:</strong> <span id="lockStatusText">Checking...</span>
-          </div>
           <div class="switch">
             <div><div class="t">Require approval</div><div class="d">New photos stay hidden until you approve them.</div></div>
             <button class="toggle" id="tApproval" aria-label="Require approval"></button>
@@ -319,13 +297,14 @@ td.num{font-variant-numeric:tabular-nums}
       </div>
 
       <div class="field" style="margin-top:24px">
-        <label>Export Wedding Data</label>
-        <div class="toolbar" style="margin:8px 0 0">
+        <label>Download & Export All Media</label>
+        <div class="toolbar" style="margin:8px 0 0;gap:12px">
           <div class="left">
-            <button class="sage" id="exportBtn">Export all data (JSON)</button>
+            <button class="sage" id="exportPhotosZipBtn">📥 Download All Photos (ZIP)</button>
+            <button class="ghost" id="exportBtn">Export Data (JSON)</button>
           </div>
         </div>
-        <small style="color:var(--muted);font-size:13px">Exports all approved photos, messages, and RSVPs for archiving.</small>
+        <small style="color:var(--muted);font-size:13px">Download full-resolution photo media files packaged into a ZIP archive, or download the full event data in JSON.</small>
       </div>
     </section>
   </div>
@@ -491,6 +470,7 @@ function renderPhotos() {
         <span class="chip ${p.status}">${p.status}</span>
       </div>
       <div class="pact">
+        <a href="${fallbackSrc}" download="${(p.author || 'photo').replace(/[^a-zA-Z0-9_-]/g, '_')}-${p.id.slice(0, 8)}.jpg" target="_blank" class="ghost small" style="text-decoration:none;display:inline-flex;align-items:center;padding:6px 10px;" title="Download full photo">Download</a>
         ${p.status !== 'approved' ? `<button class="sage small" data-act="approve" data-id="${p.id}">Approve</button>` : ''}
         ${p.status !== 'hidden' ? `<button class="ghost small" data-act="hide" data-id="${p.id}">Hide</button>` : ''}
         <button class="ghost small" data-act="delete" data-id="${p.id}">Delete</button>
@@ -724,32 +704,8 @@ async function loadSettings() {
       const displayUrl = `${window.location.origin}/display.html?token=${currentSettings.displayToken}`;
       $('displayLink').value = displayUrl;
       if ($('navDisplay')) $('navDisplay').href = displayUrl;
-      $('openDate').value = currentSettings.openDate || '';
-      $('closeDate').value = currentSettings.closeDate || '';
-      $('lockMessage').value = currentSettings.lockMessage || '';
-      $('tUploads').classList.toggle('on', currentSettings.uploadsOpen);
       $('tApproval').classList.toggle('on', currentSettings.requireApproval);
       $('tDisplay').classList.toggle('on', currentSettings.displayOn);
-
-      const isLocked = currentSettings.isLocked;
-      const qBtn = $('quickLockBtn');
-      if (qBtn) {
-        if (isLocked) {
-          qBtn.className = 'lock-btn locked';
-          $('quickLockIcon').textContent = '🔒';
-          $('quickLockText').textContent = 'Uploads Locked · Click to Unlock';
-        } else {
-          qBtn.className = 'lock-btn open';
-          $('quickLockIcon').textContent = '🔓';
-          $('quickLockText').textContent = 'Uploads Open · Click to Lock';
-        }
-      }
-      const stText = $('lockStatusText');
-      if (stText) {
-        stText.innerHTML = isLocked
-          ? `<span style="color:var(--burg);font-weight:600">🔒 Locked</span> &mdash; ${esc(currentSettings.lockReason || 'Uploads are locked for guests')}`
-          : `<span style="color:var(--sage-deep);font-weight:600">🟢 Open</span> &mdash; Guests can freely pin photos and notes.`;
-      }
     }
   } catch (err) {
     console.warn('Settings load error', err);
@@ -765,39 +721,159 @@ async function updateSetting(field, value) {
   loadSettings();
 }
 
-$('quickLockBtn').onclick = async () => {
-  const willUnlock = currentSettings.isLocked;
-  $('quickLockBtn').disabled = true;
-  $('quickLockText').textContent = willUnlock ? 'Unlocking...' : 'Locking...';
-  
-  await fetch(`${API_BASE}/api/admin/settings`, {
-    method: 'PATCH',
-    headers: authHeader(),
-    body: JSON.stringify({ uploadsOpen: willUnlock })
-  });
-  
-  await loadSettings();
-  $('quickLockBtn').disabled = false;
-  toast(willUnlock
-    ? '🟢 Uploads UNLOCKED — guests can now upload photos and notes!'
-    : '🔒 Uploads LOCKED — guests cannot upload.');
-};
-
 $('regen').onclick = async () => {
   if (!confirm('Regenerate display link? The previous link will stop working.')) return;
   await fetch(`${API_BASE}/api/admin/settings/regenerate-display-token`, { method: 'POST', headers: authHeader() });
   loadSettings();
 };
-$('openDate').onchange = e => updateSetting('openDate', e.target.value);
-$('closeDate').onchange = e => updateSetting('closeDate', e.target.value);
-$('lockMessage').onchange = e => updateSetting('lockMessage', e.target.value);
-$('tUploads').onclick = async () => {
-  const nextVal = !currentSettings.uploadsOpen;
-  await updateSetting('uploadsOpen', nextVal);
-  toast(nextVal ? '🟢 Uploads UNLOCKED' : '🔒 Uploads LOCKED');
-};
 $('tApproval').onclick = () => updateSetting('requireApproval', !currentSettings.requireApproval);
 $('tDisplay').onclick = () => updateSetting('displayOn', !currentSettings.displayOn);
+
+/* ---------- Media Download & ZIP Generator ---------- */
+const crcTable = (() => {
+  let c; const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    c = n;
+    for (let k = 0; k < 8; k++) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+    t[n] = c;
+  }
+  return t;
+})();
+
+function crc32(buf) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = (c >>> 8) ^ crcTable[(c ^ buf[i]) & 0xFF];
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function buildZipBlob(files) {
+  const parts = [];
+  const cd = [];
+  let offset = 0;
+  for (const f of files) {
+    const nameBuf = new TextEncoder().encode(f.name);
+    const dataBuf = f.data instanceof Uint8Array ? f.data : new Uint8Array(f.data);
+    const crc = crc32(dataBuf);
+    
+    // Local header (30 bytes)
+    const lh = new Uint8Array(30);
+    const lv = new DataView(lh.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0, true);
+    lv.setUint16(8, 0, true); // Store (uncompressed)
+    lv.setUint16(10, 0, true);
+    lv.setUint16(12, 0, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, dataBuf.length, true);
+    lv.setUint32(22, dataBuf.length, true);
+    lv.setUint16(26, nameBuf.length, true);
+    lv.setUint16(28, 0, true);
+    parts.push(lh, nameBuf, dataBuf);
+
+    // Central directory header (46 bytes)
+    const ch = new Uint8Array(46);
+    const cv = new DataView(ch.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, 0, true);
+    cv.setUint16(14, 0, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, dataBuf.length, true);
+    cv.setUint32(24, dataBuf.length, true);
+    cv.setUint16(28, nameBuf.length, true);
+    cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true);
+    cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    cd.push(ch, nameBuf);
+
+    offset += lh.length + nameBuf.length + dataBuf.length;
+  }
+
+  const cdOffset = offset;
+  let cdSize = 0;
+  for (const b of cd) cdSize += b.length;
+
+  // End of central directory record (22 bytes)
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true);
+  ev.setUint16(6, 0, true);
+  ev.setUint16(8, files.length, true);
+  ev.setUint16(10, files.length, true);
+  ev.setUint32(12, cdSize, true);
+  ev.setUint32(16, cdOffset, true);
+  ev.setUint16(20, 0, true);
+
+  return new Blob([...parts, ...cd, eocd], { type: 'application/zip' });
+}
+
+let isDownloadingZip = false;
+async function downloadAllPhotosZip() {
+  if (isDownloadingZip) return;
+  isDownloadingZip = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/photos`, { headers: authHeader() });
+    if (!res.ok) throw new Error('Could not fetch photo list');
+    const allPhotos = await res.json();
+    if (!allPhotos || !allPhotos.length) {
+      toast('No photos uploaded yet to download.');
+      return;
+    }
+
+    toast(`Downloading ${allPhotos.length} photo(s)...`);
+    const files = [];
+    let idx = 1;
+    for (const p of allPhotos) {
+      try {
+        const src = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+        const r = await fetch(src);
+        if (r.ok) {
+          const ab = await r.arrayBuffer();
+          const cleanAuthor = (p.author || 'guest').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 24);
+          const filename = `${String(idx).padStart(2, '0')}-${cleanAuthor}-${p.id.slice(0, 8)}.jpg`;
+          files.push({ name: filename, data: new Uint8Array(ab) });
+          idx++;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch photo for zip', p.id, err);
+      }
+    }
+
+    if (!files.length) {
+      toast('Could not download photo files. Please try again.');
+      return;
+    }
+
+    const zipBlob = buildZipBlob(files);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = `wedding-moments-photos-${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+
+    toast(`✅ Downloaded ${files.length} photo(s) in ZIP archive!`);
+  } catch (err) {
+    console.error('ZIP download error', err);
+    toast('Error generating ZIP download.');
+  } finally {
+    isDownloadingZip = false;
+  }
+}
+
+if ($('topDownloadZipBtn')) $('topDownloadZipBtn').onclick = downloadAllPhotosZip;
+if ($('photoZipBtn')) $('photoZipBtn').onclick = downloadAllPhotosZip;
+if ($('exportPhotosZipBtn')) $('exportPhotosZipBtn').onclick = downloadAllPhotosZip;
 
 /* ---------- Data Export ---------- */
 $('exportBtn').onclick = async () => {

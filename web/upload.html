@@ -124,10 +124,6 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:0 20px 40px}
 
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.6;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E")}
 
-.lock-banner{display:flex;align-items:center;gap:14px;background:#FDF5EC;border:1.5px solid #E9D2C7;color:#6C392B;border-radius:14px;padding:16px 20px;margin-bottom:24px;line-height:1.4}
-.lock-banner.hide{display:none}
-.lock-icon{font-size:26px;line-height:1}
-
 .back{position:absolute;top:18px;left:18px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:rgba(255,253,249,.18);color:#FFFDF9;padding:9px 16px 9px 12px;border-radius:999px;font-size:14px;font-weight:600;border:1px solid rgba(255,253,249,.35);overflow:hidden;isolation:isolate;transition:transform .2s,background .25s,box-shadow .25s}
 .back::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);transition:transform .6s ease;z-index:-1}
 .back:hover::before{transform:translateX(120%)}
@@ -168,14 +164,6 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
 
     <input type="file" id="fileInput" accept="image/*" multiple hidden>
     <label for="msgText" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Your message</label>
-
-    <div class="lock-banner hide" id="lockBanner">
-      <div class="lock-icon">&#128274;</div>
-      <div>
-        <strong id="lockTitle">Uploads Are Currently Locked</strong>
-        <p id="lockDesc" style="margin:4px 0 0;font-size:14px;opacity:.95"></p>
-      </div>
-    </div>
 
     <div class="composer">
       <div class="panel">
@@ -325,32 +313,17 @@ async function refreshQuota() {
       myMsgsCount = q.messages.used;
       $('photoPill').textContent = `${q.photos.left} of ${MAX_PHOTOS} left`;
       $('msgPill').textContent = `${q.messages.left} of ${MAX_MSGS} left`;
-      
-      const isLocked = !q.uploadsOpen;
-      $('lockBanner').classList.toggle('hide', !isLocked);
-      if (isLocked) {
-        $('lockTitle').textContent = 'Uploads Are Locked';
-        $('lockDesc').textContent = q.lockReason || 'Photo and note uploads will open on the wedding day.';
-        $('pickBtn').disabled = true;
-        $('pickBtn').textContent = 'Uploads Locked';
-        $('postBtn').disabled = true;
-        $('postBtn').textContent = 'Uploads Locked';
-        $('msgText').disabled = true;
-        $('dropzone').style.opacity = '0.65';
-        $('busy').textContent = q.lockReason || 'Uploads are currently locked.';
+      $('pickBtn').disabled = q.photos.left <= 0;
+      $('pickBtn').textContent = 'Choose photos';
+      $('postBtn').disabled = q.messages.left <= 0;
+      $('postBtn').textContent = 'Stick it on the wall';
+      $('msgText').disabled = q.messages.left <= 0;
+      $('dropzone').style.opacity = '1';
+      $('dropzone').classList.toggle('full', q.photos.left <= 0);
+      if (q.photos.left <= 0) {
+        $('busy').textContent = 'You have used all 10 photos. Thank you!';
       } else {
-        $('pickBtn').disabled = q.photos.left <= 0;
-        $('pickBtn').textContent = 'Choose photos';
-        $('postBtn').disabled = q.messages.left <= 0;
-        $('postBtn').textContent = 'Stick it on the wall';
-        $('msgText').disabled = q.messages.left <= 0;
-        $('dropzone').style.opacity = '1';
-        $('dropzone').classList.toggle('full', q.photos.left <= 0);
-        if (q.photos.left <= 0) {
-          $('busy').textContent = 'You have used all 10 photos. Thank you!';
-        } else {
-          $('busy').textContent = '';
-        }
+        $('busy').textContent = '';
       }
     }
   } catch (err) {
