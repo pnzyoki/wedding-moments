@@ -107,9 +107,12 @@ body.locked{overflow:hidden}
 .choice span{display:block;text-align:center;padding:14px;border:1.5px solid #EADFD9;border-radius:12px;font-weight:600;cursor:pointer;transition:all .2s;background:var(--cream)}
 .choice input:checked + span{border-color:var(--pink-deep);background:var(--pink-soft);color:var(--pink-deep)}
 .choice input:focus-visible + span{outline:3px solid rgba(138,154,123,.7);outline-offset:2px}
+[hidden], [hidden] *{display:none!important}
 .rsvp-done{background:var(--sage-soft);color:var(--sage-deep);border-radius:14px;padding:16px 18px;font-size:15px;line-height:1.5}
+.rsvp-done[hidden],.rsvp-done:empty{display:none!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important}
 .note{font-size:13px;color:var(--muted);margin:10px 0 0}
-.alert{font-size:14px;color:var(--pink-deep);min-height:18px;margin-top:10px}
+.alert{font-size:14px;color:var(--pink-deep);min-height:0;margin-top:10px}
+.alert:empty{display:none!important;margin:0!important;padding:0!important}
 
 .venue-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:clamp(24px,4vw,36px);position:relative}
 .venue-card .kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--pink-deep);font-weight:600;margin-bottom:6px}
@@ -284,7 +287,6 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
       <div class="alert" id="rsvpAlert"></div>
     </div>
     <div id="rsvpDone" class="rsvp-done" hidden></div>
-    <p class="note">Your reply is confirmed with the couple.</p>
   </section>
 
 </main>
@@ -447,14 +449,18 @@ function renderRsvp() {
       $('rsvpDone').innerHTML = `
         <div style="font-weight:600;font-size:16px;margin-bottom:6px">Thank you, ${esc(saved.name)}!</div>
         <div>We are delighted you will celebrate with us for <strong>${guestText}</strong>.</div>
-        <div style="margin-top:10px;padding:10px 12px;background:#FFF9EE;border:1px solid #EAC878;border-radius:10px;color:#6A4B10;font-size:13px;line-height:1.45">
+        <p style="margin:8px 0 0;font-size:13px;opacity:.9">Your reply has been confirmed with the couple.</p>
+        <div style="margin-top:12px;padding:10px 12px;background:#FFF9EE;border:1px solid #EAC878;border-radius:10px;color:#6A4B10;font-size:13px;line-height:1.45">
           <strong>Important Reminder:</strong> All visitors must carry their original <strong>National ID or Passport</strong> for security entry at the Ruiru Prison Staff Training College gate.
         </div>`;
     } else {
       $('rsvpDone').innerHTML = `
         <div style="font-weight:600;font-size:16px;margin-bottom:6px">Thank you, ${esc(saved.name)}.</div>
-        <div>We are sorry you cannot make it, and we warmly appreciate you letting us know.</div>`;
+        <div>We are sorry you cannot make it, and we warmly appreciate you letting us know.</div>
+        <p style="margin:8px 0 0;font-size:13px;opacity:.9">Your reply has been confirmed with the couple.</p>`;
     }
+  } else {
+    $('rsvpDone').textContent = '';
   }
 }
 
