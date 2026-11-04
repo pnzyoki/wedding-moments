@@ -329,7 +329,8 @@ app.post('/api/messages', requireGuest, async (req, res) => {
 app.post('/api/rsvp', rateLimit('rsvp', 30), async (req, res) => {
   const name = sanitize(req.body?.name ?? '', 200);
   const attending = req.body?.attending === 'no' ? 'no' : 'yes';
-  const count = Math.max(1, Math.min(10, Number(req.body?.count) || 1));
+  // Guest limit: 0 if declining, 1 or 2 if attending
+  const count = attending === 'no' ? 0 : Math.max(1, Math.min(2, Number(req.body?.count) || 1));
   const notes = sanitize(req.body?.notes ?? '', 500);
 
   if (!name) return res.status(400).json({ error: 'Please enter your name.' });

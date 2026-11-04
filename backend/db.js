@@ -332,14 +332,28 @@ export async function saveMessage({ guestId, text, author, status, limit }) {
 export async function saveRsvp({ name, attending, count, notes }) {
   const id = newId();
   if (useSupabase) {
-    const { error } = await supabase.from('rsvps').insert({
+    let finalCount = count;
+    let { error } = await supabase.from('rsvps').insert({
       id,
       name,
       attending,
-      count,
+      count: finalCount,
       notes: notes || null,
       created_at: new Date().toISOString()
     });
+    // In case older Supabase table has CHECK (count BETWEEN 1 AND 10) and guest declined with 0
+    if (error && error.message && error.message.includes('count') && finalCount === 0) {
+      const retry = await supabase.from('rsvps').insert({
+        id,
+        name,
+        attending,
+        count: 1,
+        notes: notes || null,
+        created_at: new Date().toISOString()
+      });
+      if (retry.error) throw new Error(retry.error.message || 'Supabase RSVP insert error');
+      return id;
+    }
     if (error) {
       console.error('[Supabase saveRsvp error]', error);
       throw new Error(error.message || 'Supabase RSVP insert error');

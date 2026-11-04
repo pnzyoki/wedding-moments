@@ -12,11 +12,15 @@ CREATE TABLE IF NOT EXISTS public.rsvps (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
   attending   TEXT NOT NULL CHECK (attending IN ('yes', 'no')),
-  count       INTEGER NOT NULL DEFAULT 1 CHECK (count BETWEEN 1 AND 10),
+  count       INTEGER NOT NULL DEFAULT 1 CHECK (count BETWEEN 0 AND 10),
   notes       TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_rsvps_created ON public.rsvps(created_at DESC);
+
+-- Ensure count allows 0 if table already exists
+ALTER TABLE public.rsvps DROP CONSTRAINT IF EXISTS rsvps_count_check;
+ALTER TABLE public.rsvps ADD CONSTRAINT rsvps_count_check CHECK (count BETWEEN 0 AND 10);
 
 -- 3. Guests Table (Identified by token hash)
 CREATE TABLE IF NOT EXISTS public.guests (

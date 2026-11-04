@@ -212,6 +212,15 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
     <div class="kicker">Venue & Directions</div>
     <h2 id="venueTitle">Ruiru Prison Staff Training College</h2>
     <p class="venue-sub">Kenya Prisons Staff Training College (PSTC) &bull; Ruiru</p>
+
+    <div class="gate-notice" style="background:#FFF9EE;border:1.5px solid #EAC878;border-radius:12px;padding:14px 16px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px">
+      <div style="font-size:22px;line-height:1">🪪</div>
+      <div>
+        <strong style="color:#7A5514;font-size:14px;display:block;margin-bottom:2px">Gate Entry Requirement: Carry National ID / Passport</strong>
+        <span style="color:#6A4B10;font-size:13px;line-height:1.45">All guests are required to carry and present their original <strong>National ID or Passport</strong> for security clearance at the college main gate. Entry will not be permitted without valid identification.</span>
+      </div>
+    </div>
+
     <div class="map-wrap">
       <iframe
         title="Pinned Map - Ruiru Prison Staff Training College"
@@ -244,7 +253,13 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
   <section class="rsvp" id="rsvp">
     <div class="kicker">RSVP</div>
     <h2>Will you be joining us?</h2>
-    <p class="lead" id="rsvpLead"></p>
+    <p class="lead" id="rsvpLead">Please reply by 11th of November 2026.</p>
+
+    <div class="id-banner" style="background:#F6F8F4;border:1px solid #C4D3BE;border-radius:12px;padding:12px 14px;margin-bottom:18px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">🪪</span>
+      <span style="font-size:13px;color:#3F5A36;line-height:1.4"><strong>Gate notice:</strong> Please carry your original <strong>National ID / Passport</strong> for security clearance at the gate.</span>
+    </div>
+
     <div id="rsvpForm">
       <div class="field">
         <label for="rsvpName">Your name</label>
@@ -257,9 +272,13 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
           <label class="choice"><input type="radio" name="attend" value="no"><span>Regretfully decline</span></label>
         </div>
       </div>
-      <div class="field">
+      <div class="field" id="countField">
         <label for="rsvpCount">Number of guests (including you)</label>
-        <select id="rsvpCount"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+        <select id="rsvpCount">
+          <option value="1">1 (Just myself)</option>
+          <option value="2">2 (Myself + 1 guest)</option>
+        </select>
+        <small style="color:var(--muted);font-size:12px;margin-top:4px;display:block">Limit: 0–2 guests per invitation.</small>
       </div>
       <button class="btn" id="rsvpSend">Send reply</button>
       <div class="alert" id="rsvpAlert"></div>
@@ -351,7 +370,7 @@ function renderInvite() {
 
   // Countdown, shown below the calendar
   renderCountdown(when);
-  $('rsvpLead').textContent = `Please reply by ${new Date(INVITE.rsvpBy + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.`;
+  $('rsvpLead').textContent = 'Please reply by 11th of November 2026.';
   $('gCouple').textContent = INVITE.couple.join(' & ');
 }
 
@@ -423,11 +442,31 @@ function renderRsvp() {
   $('rsvpForm').hidden = !!saved;
   $('rsvpDone').hidden = !saved;
   if (saved) {
-    $('rsvpDone').textContent = saved.attend === 'yes'
-      ? `Thank you, ${saved.name}. We are delighted you can join us with ${saved.count} ${saved.count === 1 ? 'guest' : 'guests'}.`
-      : `Thank you, ${saved.name}. We are sorry you cannot make it, and we appreciate you letting us know.`;
+    if (saved.attend === 'yes') {
+      const guestText = saved.count === 2 ? '2 guests (you + 1 guest)' : '1 guest (just yourself)';
+      $('rsvpDone').innerHTML = `
+        <div style="font-weight:600;font-size:16px;margin-bottom:6px">Thank you, ${esc(saved.name)}!</div>
+        <div>We are delighted you will celebrate with us for <strong>${guestText}</strong>.</div>
+        <div style="margin-top:10px;padding:10px 12px;background:#FFF9EE;border:1px solid #EAC878;border-radius:10px;color:#6A4B10;font-size:13px;line-height:1.45">
+          <strong>Important Reminder:</strong> All visitors must carry their original <strong>National ID or Passport</strong> for security entry at the Ruiru Prison Staff Training College gate.
+        </div>`;
+    } else {
+      $('rsvpDone').innerHTML = `
+        <div style="font-weight:600;font-size:16px;margin-bottom:6px">Thank you, ${esc(saved.name)}.</div>
+        <div>We are sorry you cannot make it, and we warmly appreciate you letting us know.</div>`;
+    }
   }
 }
+
+// Toggle guest count selector depending on attendance choice
+document.querySelectorAll('input[name="attend"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const isAttending = r.value === 'yes';
+    const cf = $('countField');
+    if (cf) cf.style.display = isAttending ? 'block' : 'none';
+  });
+});
+
 $('rsvpSend').onclick = async () => {
   const name = $('rsvpName').value.trim();
   const attend = document.querySelector('input[name="attend"]:checked');
@@ -438,7 +477,8 @@ $('rsvpSend').onclick = async () => {
   btn.disabled = true;
   btn.textContent = 'Sending...';
 
-  const count = Number($('rsvpCount').value);
+  const isAttending = attend.value === 'yes';
+  const count = isAttending ? Math.max(1, Math.min(2, Number($('rsvpCount').value) || 1)) : 0;
   try {
     const res = await fetch(`${API_BASE}/api/rsvp`, {
       method: 'POST',
