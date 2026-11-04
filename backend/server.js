@@ -138,11 +138,11 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Rate limiting
+// Rate limiting with automatic garbage collection for scale
 const attempts = new Map();
 function rateLimit(prefix, maxHits = 15, windowMs = 15 * 60 * 1000) {
   return (req, res, next) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
     const key = `${prefix}:${ip}`;
     const entry = attempts.get(key) || { count: 0, resetAt: now() + windowMs };
     if (now() > entry.resetAt) {
@@ -151,6 +151,14 @@ function rateLimit(prefix, maxHits = 15, windowMs = 15 * 60 * 1000) {
     }
     entry.count++;
     attempts.set(key, entry);
+
+    if (attempts.size > 1000) {
+      const cur = now();
+      for (const [k, v] of attempts) {
+        if (cur > v.resetAt) attempts.delete(k);
+      }
+    }
+
     if (entry.count > maxHits) {
       return res.status(429).json({ error: 'Too many attempts. Please try again later.' });
     }
@@ -200,6 +208,7 @@ app.get('/admin', (_req, res) => res.redirect('/admin.html'));
 
 // Public Quotes
 app.get('/api/quote', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400');
   res.json(QUOTES[crypto.randomInt(QUOTES.length)]);
 });
 
@@ -226,6 +235,7 @@ app.get('/api/me', requireGuest, async (req, res) => {
 
 // Approved Photos
 app.get('/api/photos', async (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=5, stale-while-revalidate=15');
   const photos = await db.getApprovedPhotos();
   res.json(photos);
 });
@@ -244,7 +254,7 @@ app.get('/api/photo-proxy', async (req, res) => {
     const upstream = await fetch(url);
     if (!upstream.ok) return res.status(upstream.status).send('Upstream error');
     res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
     const buf = Buffer.from(await upstream.arrayBuffer());
     res.send(buf);
   } catch (err) {
@@ -294,6 +304,7 @@ app.post('/api/photos/:id/like', requireGuest, async (req, res) => {
 
 // Approved Messages
 app.get('/api/messages', async (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=5, stale-while-revalidate=15');
   const messages = await db.getApprovedMessages();
   res.json(messages);
 });
@@ -350,6 +361,7 @@ app.get('/api/display/:token/photos', async (req, res) => {
   if (!tokenOk || (await db.getSetting('display_on')) !== '1') {
     return res.status(404).json({ error: 'Not available.' });
   }
+  res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=5, stale-while-revalidate=15');
   const photos = await db.getApprovedPhotos();
   res.json(photos.map(p => ({ url: p.url, author: p.author, createdAt: p.createdAt })));
 });
@@ -359,6 +371,7 @@ app.get('/api/display/:token/wall', async (req, res) => {
   if (!tokenOk || (await db.getSetting('display_on')) !== '1') {
     return res.status(404).json({ error: 'Not available.' });
   }
+  res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=5, stale-while-revalidate=15');
   const [photos, messages] = await Promise.all([
     db.getApprovedPhotos(),
     db.getApprovedMessages()

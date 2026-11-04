@@ -98,17 +98,53 @@ function noDb() {
   throw new Error('No database available. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as environment variables.');
 }
 
+// In-memory TTL cache to maximize scalability and eliminate redundant database queries
+const memoryCache = new Map();
+
+function getCached(key) {
+  const item = memoryCache.get(key);
+  if (!item) return null;
+  if (Date.now() > item.expiresAt) {
+    memoryCache.delete(key);
+    return null;
+  }
+  return item.value;
+}
+
+function setCached(key, value, ttlMs) {
+  memoryCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+export function invalidateCache(prefix = '') {
+  if (!prefix) {
+    memoryCache.clear();
+    return;
+  }
+  for (const k of memoryCache.keys()) {
+    if (k.startsWith(prefix)) memoryCache.delete(k);
+  }
+}
+
 // ---------- Settings ----------
 export async function getSetting(key) {
+  const cacheKey = `setting:${key}`;
+  const cached = getCached(cacheKey);
+  if (cached !== null) return cached;
+
+  let val = null;
   if (useSupabase) {
     const { data } = await supabase.from('settings').select('value').eq('key', key).maybeSingle();
-    return data?.value ?? null;
+    val = data?.value ?? null;
+  } else if (sqlite) {
+    val = sqlite.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value ?? null;
   }
-  if (!sqlite) return null;
-  return sqlite.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value ?? null;
+
+  if (val !== null) setCached(cacheKey, val, 10000); // 10 second cache
+  return val;
 }
 
 export async function putSetting(key, value) {
+  invalidateCache('setting');
   if (useSupabase) {
     await supabase.from('settings').upsert({ key, value: String(value) });
     return;
@@ -173,6 +209,10 @@ export async function getGuestQuota(guestId, limits) {
 
 // ---------- Photos ----------
 export async function getApprovedPhotos() {
+  const cached = getCached('approved_photos');
+  if (cached) return cached;
+
+  let photos = [];
   if (useSupabase) {
     const { data } = await supabase
       .from('photos')
@@ -180,7 +220,7 @@ export async function getApprovedPhotos() {
       .eq('status', 'approved')
       .order('created_at', { ascending: true });
 
-    return (data || []).map(r => ({
+    photos = (data || []).map(r => ({
       id: r.id,
       url: `/api/photo-proxy?url=${encodeURIComponent(r.file_url)}`,
       rawUrl: r.file_url,
@@ -189,25 +229,28 @@ export async function getApprovedPhotos() {
       createdAt: new Date(r.created_at).getTime(),
       likes: r.reactions?.length || 0
     }));
+  } else if (sqlite) {
+    const rows = sqlite.prepare(`
+      SELECT p.id, p.file, p.author, p.guest_id, p.created_at,
+        (SELECT COUNT(*) FROM reactions r WHERE r.photo_id = p.id) AS likes
+      FROM photos p WHERE p.status = 'approved' ORDER BY p.created_at ASC`).all();
+
+    photos = rows.map(r => ({
+      id: r.id,
+      url: `/uploads/${r.file}`,
+      author: r.author || '',
+      guestId: r.guest_id,
+      createdAt: r.created_at,
+      likes: r.likes
+    }));
   }
 
-  if (!sqlite) return [];
-  const rows = sqlite.prepare(`
-    SELECT p.id, p.file, p.author, p.guest_id, p.created_at,
-      (SELECT COUNT(*) FROM reactions r WHERE r.photo_id = p.id) AS likes
-    FROM photos p WHERE p.status = 'approved' ORDER BY p.created_at ASC`).all();
-
-  return rows.map(r => ({
-    id: r.id,
-    url: `/uploads/${r.file}`,
-    author: r.author || '',
-    guestId: r.guest_id,
-    createdAt: r.created_at,
-    likes: r.likes
-  }));
+  setCached('approved_photos', photos, 4000);
+  return photos;
 }
 
 export async function savePhoto({ guestId, filename, fileUrl, author, status, limit }) {
+  invalidateCache('approved_photos');
   if (useSupabase) {
     const { count } = await supabase.from('photos').select('*', { count: 'exact', head: true }).eq('guest_id', guestId);
     if ((count || 0) >= limit) throw Object.assign(new Error('LIMIT'), { limit: true });
@@ -237,6 +280,7 @@ export async function savePhoto({ guestId, filename, fileUrl, author, status, li
 }
 
 export async function deleteGuestPhoto(photoId, guestId) {
+  invalidateCache('approved_photos');
   if (useSupabase) {
     const { data } = await supabase.from('photos').select('file_url').eq('id', photoId).eq('guest_id', guestId).maybeSingle();
     if (!data) return false;
@@ -253,6 +297,7 @@ export async function deleteGuestPhoto(photoId, guestId) {
 }
 
 export async function toggleLike(photoId, guestId) {
+  invalidateCache('approved_photos');
   if (useSupabase) {
     const { data: existing } = await supabase.from('reactions')
       .select('photo_id').eq('photo_id', photoId).eq('guest_id', guestId).maybeSingle();
@@ -279,6 +324,10 @@ export async function toggleLike(photoId, guestId) {
 
 // ---------- Messages ----------
 export async function getApprovedMessages() {
+  const cached = getCached('approved_messages');
+  if (cached) return cached;
+
+  let msgs = [];
   if (useSupabase) {
     const { data } = await supabase
       .from('messages')
@@ -286,20 +335,23 @@ export async function getApprovedMessages() {
       .eq('status', 'approved')
       .order('created_at', { ascending: true });
 
-    return (data || []).map(r => ({
+    msgs = (data || []).map(r => ({
       id: r.id,
       text: r.text,
       author: r.author || '',
       createdAt: new Date(r.created_at).getTime()
     }));
+  } else if (sqlite) {
+    const rows = sqlite.prepare("SELECT id, text, author, created_at FROM messages WHERE status = 'approved' ORDER BY created_at ASC").all();
+    msgs = rows.map(r => ({ id: r.id, text: r.text, author: r.author || '', createdAt: r.created_at }));
   }
 
-  if (!sqlite) return [];
-  const rows = sqlite.prepare("SELECT id, text, author, created_at FROM messages WHERE status = 'approved' ORDER BY created_at ASC").all();
-  return rows.map(r => ({ id: r.id, text: r.text, author: r.author || '', createdAt: r.created_at }));
+  setCached('approved_messages', msgs, 4000);
+  return msgs;
 }
 
 export async function saveMessage({ guestId, text, author, status, limit }) {
+  invalidateCache('approved_messages');
   if (useSupabase) {
     const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('guest_id', guestId);
     if ((count || 0) >= limit) throw Object.assign(new Error('LIMIT'), { limit: true });
@@ -514,6 +566,7 @@ export async function getAdminPhotos(status) {
 }
 
 export async function updatePhotoStatus(id, status) {
+  invalidateCache('approved_photos');
   if (useSupabase) {
     const { error } = await supabase.from('photos').update({ status }).eq('id', id);
     return !error;
@@ -524,6 +577,7 @@ export async function updatePhotoStatus(id, status) {
 }
 
 export async function deletePhoto(id) {
+  invalidateCache('approved_photos');
   if (useSupabase) {
     await supabase.from('photos').delete().eq('id', id);
     return true;
@@ -573,6 +627,7 @@ export async function getAdminMessages(status) {
 }
 
 export async function updateMessageStatus(id, status) {
+  invalidateCache('approved_messages');
   if (useSupabase) {
     const { error } = await supabase.from('messages').update({ status }).eq('id', id);
     return !error;
@@ -583,6 +638,7 @@ export async function updateMessageStatus(id, status) {
 }
 
 export async function deleteMessage(id) {
+  invalidateCache('approved_messages');
   if (useSupabase) {
     await supabase.from('messages').delete().eq('id', id);
     return true;
@@ -630,6 +686,8 @@ export async function getAdminGuests() {
 }
 
 export async function resetGuest(guestId) {
+  invalidateCache('approved_photos');
+  invalidateCache('approved_messages');
   if (useSupabase) {
     await Promise.all([
       supabase.from('messages').delete().eq('guest_id', guestId),
