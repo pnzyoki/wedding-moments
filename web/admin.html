@@ -464,7 +464,11 @@ function renderPhotos() {
     const fallbackSrc = p.rawUrl || imgSrc;
     const authorTag = p.author ? ` &middot; <b>${esc(p.author)}</b>` : '';
     card.innerHTML = `
-      <img src="${imgSrc}" alt="Uploaded photo" onerror="if(!this.dataset.tried){this.dataset.tried='1';this.src='${fallbackSrc}';}">
+      <img src="${imgSrc}" alt="Uploaded photo" loading="lazy" style="cursor:pointer;" title="Click to view photo" onclick="window.open('${fallbackSrc}','_blank')" onerror="if(!this.dataset.tried && '${fallbackSrc}' !== '${imgSrc}'){this.dataset.tried='1';this.src='${fallbackSrc}';}else{this.style.display='none';this.nextElementSibling.style.display='flex';}">
+      <div class="pfail" style="display:none;aspect-ratio:4/3;background:var(--beige);flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px;font-size:12px;color:var(--muted);text-align:center;">
+        <span>Preview unavailable</span>
+        <a href="${fallbackSrc}" target="_blank" style="color:var(--sage-deep);text-decoration:underline;font-weight:600;">Open image &rarr;</a>
+      </div>
       <div class="pmeta">
         <span><span class="code">${esc(p.guest)}</span>${authorTag}</span>
         <span class="chip ${p.status}">${p.status}</span>

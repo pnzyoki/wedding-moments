@@ -569,7 +569,18 @@ function openLightbox(id) {
 function showLb(i) {
   lbIdx = (i + photos.length) % photos.length;
   const p = photos[lbIdx];
-  $('lbImg').src = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+  const primarySrc = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+  const lbImg = $('lbImg');
+  delete lbImg.dataset.tried;
+  lbImg.src = primarySrc;
+  if (p.rawUrl) {
+    lbImg.onerror = function() {
+      if (!this.dataset.tried && p.rawUrl !== primarySrc) {
+        this.dataset.tried = '1';
+        this.src = p.rawUrl;
+      }
+    };
+  }
   $('lbCount').textContent = `${lbIdx + 1} of ${photos.length}`;
 }
 function closeLb() { $('lightbox').classList.remove('open'); }

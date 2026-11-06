@@ -238,7 +238,18 @@ function updateSlideshow() {
   $('slideImg').style.display = 'block';
   slideIdx = (slideIdx + photosList.length) % photosList.length;
   const p = photosList[slideIdx];
-  $('slideImg').src = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+  const primarySrc = p.url.startsWith('/') ? `${API_BASE}${p.url}` : p.url;
+  const slideImg = $('slideImg');
+  delete slideImg.dataset.tried;
+  slideImg.src = primarySrc;
+  if (p.rawUrl) {
+    slideImg.onerror = function() {
+      if (!this.dataset.tried && p.rawUrl !== primarySrc) {
+        this.dataset.tried = '1';
+        this.src = p.rawUrl;
+      }
+    };
+  }
   $('slideMeta').textContent = p.author ? `Shared by ${p.author}` : `Moment ${slideIdx + 1} of ${photosList.length}`;
 }
 

@@ -733,3 +733,25 @@ export async function storePhotoFile(file) {
   fs.writeFileSync(path.join(UPLOAD_DIR, filename), file.buffer);
   return { filename, fileUrl: `/uploads/${filename}` };
 }
+
+// Download photo buffer from Supabase Storage or local disk
+export async function downloadPhotoFile(filename) {
+  if (useSupabase) {
+    try {
+      const { data, error } = await supabase.storage.from('wedding-photos').download(filename);
+      if (error || !data) return null;
+      return Buffer.from(await data.arrayBuffer());
+    } catch (err) {
+      console.error('[Supabase downloadPhotoFile error]', err);
+      return null;
+    }
+  }
+  if (sqlite) {
+    try {
+      return fs.readFileSync(path.join(UPLOAD_DIR, filename));
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}

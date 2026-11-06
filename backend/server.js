@@ -243,21 +243,57 @@ app.get('/api/photos', async (_req, res) => {
 // Photo view proxy — guaranteed same-origin image delivery without cross-origin or CSP friction
 app.get('/api/photo-proxy', async (req, res) => {
   const url = req.query.url;
-  if (!url || typeof url !== 'string' || !url.startsWith('https://')) {
+  if (!url || typeof url !== 'string') {
     return res.status(400).send('Invalid url');
   }
   try {
-    const target = new URL(url);
-    if (!target.hostname.endsWith('supabase.co')) {
-      return res.status(403).send('Forbidden');
+    if (url.startsWith('https://')) {
+      const target = new URL(url);
+      const isSupabase = target.hostname.endsWith('supabase.co') || target.hostname.endsWith('supabase.in');
+      if (!isSupabase) {
+        return res.status(403).send('Forbidden');
+      }
+
+      // 1. Try direct upstream fetch (fast edge CDN)
+      try {
+        const upstream = await fetch(url);
+        if (upstream.ok) {
+          res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+          res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
+          const buf = Buffer.from(await upstream.arrayBuffer());
+          return res.send(buf);
+        }
+      } catch (_) {}
+
+      // 2. Fallback: stream directly from Supabase Storage SDK with service key (bypasses bucket privacy policies)
+      const parts = target.pathname.split('/');
+      const filename = parts[parts.length - 1];
+      if (filename) {
+        const buf = await db.downloadPhotoFile(decodeURIComponent(filename));
+        if (buf) {
+          const ext = path.extname(filename).toLowerCase();
+          const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+          res.setHeader('Content-Type', mime);
+          res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
+          return res.send(buf);
+        }
+      }
+      return res.status(404).send('Photo not found');
     }
-    const upstream = await fetch(url);
-    if (!upstream.ok) return res.status(upstream.status).send('Upstream error');
-    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
-    const buf = Buffer.from(await upstream.arrayBuffer());
-    res.send(buf);
+
+    if (url.startsWith('/uploads/')) {
+      const filename = path.basename(url);
+      const buf = await db.downloadPhotoFile(filename);
+      if (buf) {
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
+        return res.send(buf);
+      }
+    }
+
+    return res.status(400).send('Invalid url');
   } catch (err) {
+    console.error('Proxy error:', err);
     res.status(500).send('Proxy error');
   }
 });
