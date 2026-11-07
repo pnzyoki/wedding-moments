@@ -160,14 +160,62 @@ body.locked{overflow:hidden}
 .love-banner{
   position:relative;
   width:100%;
-  aspect-ratio:1030 / 402;
-  background-image:url('love-template.jpg');
-  background-size:100% auto;
-  background-position:top center;
-  background-repeat:no-repeat;
   border-top-left-radius:inherit;
   border-top-right-radius:inherit;
   overflow:hidden;
+  background:#1A1513;
+}
+.love-grid{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:2px;
+  background:#FFFFFF;
+  width:100%;
+  height:clamp(240px, 42vw, 420px);
+}
+.love-col{
+  position:relative;
+  overflow:hidden;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#26201D;
+}
+.love-img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center 15%;
+  display:block;
+  transition:transform .7s cubic-bezier(.2,.8,.2,1);
+}
+.love-col:hover .love-img{
+  transform:scale(1.06);
+}
+.love-col-1 .love-img{ object-position:center 12%; }
+.love-col-2 .love-img{ object-position:center 16%; }
+.love-col-3 .love-img{ object-position:center 16%; }
+.love-col-4 .love-img{ object-position:center 16%; }
+
+.love-overlay{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg, rgba(20,16,14,.24) 0%, rgba(20,16,14,.06) 45%, rgba(20,16,14,.34) 100%);
+  pointer-events:none;
+}
+.love-letter{
+  position:absolute;
+  z-index:2;
+  font-family:'Cormorant Garamond', Georgia, serif;
+  font-size:clamp(44px, 7.5vw, 76px);
+  font-weight:700;
+  color:#FFFFFF;
+  line-height:1;
+  text-shadow:0 3px 14px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.6);
+  pointer-events:none;
+  letter-spacing:.02em;
+  user-select:none;
 }
 .love-banner::after{
   content:"";
@@ -178,6 +226,7 @@ body.locked{overflow:hidden}
   height:40px;
   background:linear-gradient(180deg,transparent,rgba(255,255,255,.9) 70%,#FFFFFF 100%);
   pointer-events:none;
+  z-index:3;
 }
 
 /* Card Content Area */
@@ -563,7 +612,30 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
 
   <section class="invite-card" aria-labelledby="inviteTitle">
     <!-- Greetings Island LOVE 4-Panel Photo Strip Header -->
-    <div class="love-banner" role="img" aria-label="LOVE Photo Montage Header"></div>
+    <div class="love-banner" aria-label="LOVE Photo Montage Header">
+      <div class="love-grid">
+        <div class="love-col love-col-1">
+          <img src="images/love-l.jpg" alt="Elvis" class="love-img" />
+          <div class="love-overlay" aria-hidden="true"></div>
+          <span class="love-letter" aria-hidden="true">L</span>
+        </div>
+        <div class="love-col love-col-2">
+          <img src="images/love-o.jpg" alt="Ruth" class="love-img" />
+          <div class="love-overlay" aria-hidden="true"></div>
+          <span class="love-letter" aria-hidden="true">O</span>
+        </div>
+        <div class="love-col love-col-3">
+          <img src="images/love-v.jpg" alt="Ruth &amp; Elvis" class="love-img" />
+          <div class="love-overlay" aria-hidden="true"></div>
+          <span class="love-letter" aria-hidden="true">V</span>
+        </div>
+        <div class="love-col love-col-4">
+          <img src="images/love-e.jpg" alt="Ruth &amp; Elvis in traditional attire" class="love-img" />
+          <div class="love-overlay" aria-hidden="true"></div>
+          <span class="love-letter" aria-hidden="true">E</span>
+        </div>
+      </div>
+    </div>
 
     <div class="love-body">
       <div class="love-kicker" id="inviteTitle">Kindly join us for the wedding of</div>
@@ -711,7 +783,7 @@ const setAlert = (id, text) => { $(id).textContent = text; };
 // ---------- Event details: replace with the real details ----------
 const INVITE = {
   couple: ['Ruth', 'Elvis'],
-  photo: '',                    // add the couple's photo URL here when it is ready
+  photo: 'images/love-v.jpg',   // couple's photo URL
   hosts: 'Together with their parents, Joseph Nzyoki and David Kiamba, Ruth and Elvis invite you to celebrate the beginning of their marriage.',
   date: '2026-11-14',           // wedding day (YYYY-MM-DD)
   time: '10:00 AM',             // start time
