@@ -6,6 +6,10 @@
 <title>Wedding Invitation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="image" href="images/love-l.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="images/love-v.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="images/love-e.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="images/love-o.jpg" fetchpriority="high">
 <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Pinyon+Script&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -616,25 +620,25 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
       <div class="love-grid">
         <!-- Side: Single (Elvis) -->
         <div class="love-col love-col-1">
-          <img src="images/love-l.jpg" alt="Elvis" class="love-img" />
+          <img src="images/love-l.jpg" alt="Elvis" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">L</span>
         </div>
         <!-- Center: Couple (Ruth & Elvis - Formal) -->
         <div class="love-col love-col-2">
-          <img src="images/love-v.jpg" alt="Ruth &amp; Elvis" class="love-img" />
+          <img src="images/love-v.jpg" alt="Ruth &amp; Elvis" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">O</span>
         </div>
         <!-- Center: Couple (Ruth & Elvis - Traditional) -->
         <div class="love-col love-col-3">
-          <img src="images/love-e.jpg" alt="Ruth &amp; Elvis in traditional attire" class="love-img" />
+          <img src="images/love-e.jpg" alt="Ruth &amp; Elvis in traditional attire" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">V</span>
         </div>
         <!-- Side: Single (Ruth) -->
         <div class="love-col love-col-4">
-          <img src="images/love-o.jpg" alt="Ruth" class="love-img" />
+          <img src="images/love-o.jpg" alt="Ruth" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">E</span>
         </div>
@@ -960,6 +964,7 @@ $('enter').onclick = e => {
 
 // ---------- RSVP ----------
 const API_BASE = window.location.origin.startsWith('http') ? '' : 'http://localhost:3000';
+const esc = s => String(s ?? '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function renderRsvp() {
   const saved = store.get('mf_rsvp', null);

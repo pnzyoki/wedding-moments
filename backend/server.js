@@ -197,9 +197,28 @@ app.use((req, res, next) => {
 // Static uploads (for local mode fallback)
 app.use('/uploads', express.static(path.join(here, 'uploads'), { maxAge: '30d', immutable: true, index: false }));
 
+// High-performance static cache configuration
+const STATIC_CACHE_OPTS = {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    if (/\.(jpg|jpeg|png|webp|gif|svg|ico)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
+    } else if (/\.(css|js|woff2|woff|ttf)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800');
+    } else if (/\.html$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+    }
+  }
+};
+
 // Static frontend pages
 const webDir = path.join(here, '../web');
-app.use(express.static(webDir));
+app.use(express.static(webDir, STATIC_CACHE_OPTS));
+
+// Direct /images path fallback for root images directory
+const rootImagesDir = path.join(here, '../images');
+app.use('/images', express.static(rootImagesDir, STATIC_CACHE_OPTS));
+
 app.get('/', (_req, res) => res.redirect('/invite.html'));
 app.get('/invite', (_req, res) => res.redirect('/invite.html'));
 app.get('/upload', (_req, res) => res.redirect('/upload.html'));
@@ -240,12 +259,44 @@ app.get('/api/photos', async (_req, res) => {
   res.json(photos);
 });
 
+// LRU / TTL buffer cache for proxied photo downloads (delivers <2ms image responses)
+const photoBufferCache = new Map();
+const MAX_BUFFER_ITEMS = 80;
+const BUFFER_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function getCachedPhotoBuffer(key) {
+  const item = photoBufferCache.get(key);
+  if (!item) return null;
+  if (Date.now() > item.expiresAt) {
+    photoBufferCache.delete(key);
+    return null;
+  }
+  return item;
+}
+
+function setCachedPhotoBuffer(key, buf, mime) {
+  if (photoBufferCache.size >= MAX_BUFFER_ITEMS) {
+    const oldest = [...photoBufferCache.keys()].slice(0, 20);
+    oldest.forEach(k => photoBufferCache.delete(k));
+  }
+  photoBufferCache.set(key, { buf, mime, expiresAt: Date.now() + BUFFER_TTL_MS });
+}
+
 // Photo view proxy — guaranteed same-origin image delivery without cross-origin or CSP friction
 app.get('/api/photo-proxy', async (req, res) => {
   const url = req.query.url;
   if (!url || typeof url !== 'string') {
     return res.status(400).send('Invalid url');
   }
+
+  // Fast-path: serve from in-memory buffer cache
+  const cached = getCachedPhotoBuffer(url);
+  if (cached) {
+    res.setHeader('Content-Type', cached.mime);
+    res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
+    return res.send(cached.buf);
+  }
+
   try {
     if (url.startsWith('https://')) {
       const target = new URL(url);
@@ -258,9 +309,11 @@ app.get('/api/photo-proxy', async (req, res) => {
       try {
         const upstream = await fetch(url);
         if (upstream.ok) {
-          res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+          const mime = upstream.headers.get('content-type') || 'image/jpeg';
+          res.setHeader('Content-Type', mime);
           res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
           const buf = Buffer.from(await upstream.arrayBuffer());
+          setCachedPhotoBuffer(url, buf, mime);
           return res.send(buf);
         }
       } catch (_) {}
@@ -275,6 +328,7 @@ app.get('/api/photo-proxy', async (req, res) => {
           const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
           res.setHeader('Content-Type', mime);
           res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
+          setCachedPhotoBuffer(url, buf, mime);
           return res.send(buf);
         }
       }
@@ -285,8 +339,10 @@ app.get('/api/photo-proxy', async (req, res) => {
       const filename = path.basename(url);
       const buf = await db.downloadPhotoFile(filename);
       if (buf) {
-        res.setHeader('Content-Type', 'image/jpeg');
+        const mime = 'image/jpeg';
+        res.setHeader('Content-Type', mime);
         res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
+        setCachedPhotoBuffer(url, buf, mime);
         return res.send(buf);
       }
     }
