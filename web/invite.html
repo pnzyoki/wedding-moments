@@ -7,9 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="image" href="images/love-l.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="images/love-o.jpg" fetchpriority="high">
 <link rel="preload" as="image" href="images/love-v.jpg" fetchpriority="high">
 <link rel="preload" as="image" href="images/love-e.jpg" fetchpriority="high">
-<link rel="preload" as="image" href="images/love-o.jpg" fetchpriority="high">
 <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Pinyon+Script&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -175,7 +175,8 @@ body.locked{overflow:hidden}
   gap:2px;
   background:#FFFFFF;
   width:100%;
-  height:clamp(240px, 42vw, 420px);
+  aspect-ratio:16 / 10;
+  max-height:420px;
 }
 .love-col{
   position:relative;
@@ -190,37 +191,42 @@ body.locked{overflow:hidden}
   width:100%;
   height:100%;
   object-fit:cover;
-  object-position:center 6%;
+  object-position:center top;
   display:block;
+  image-rendering:-webkit-optimize-contrast;
+  image-rendering:crisp-edges;
+  transform:translateZ(0);
+  -webkit-backface-visibility:hidden;
+  backface-visibility:hidden;
   transition:transform .7s cubic-bezier(.2,.8,.2,1);
 }
 .love-col:hover .love-img{
   transform:scale(1.06);
 }
-.love-col-1 .love-img{ object-position:center 6%; }
-.love-col-2 .love-img{ object-position:48% 6%; }
-.love-col-3 .love-img{ object-position:center 6%; }
-.love-col-4 .love-img{ object-position:center 6%; }
+.love-col-1 .love-img{ object-position:center top; }
+.love-col-2 .love-img{ object-position:center top; }
+.love-col-3 .love-img{ object-position:center top; }
+.love-col-4 .love-img{ object-position:center top; }
 
 .love-overlay{
   position:absolute;
   inset:0;
-  background:linear-gradient(180deg, rgba(20,16,14,.04) 0%, rgba(20,16,14,.02) 40%, rgba(20,16,14,.42) 75%, rgba(20,16,14,.68) 100%);
+  background:linear-gradient(180deg, rgba(20,16,14,.02) 0%, rgba(20,16,14,.01) 40%, rgba(20,16,14,.4) 75%, rgba(20,16,14,.66) 100%);
   pointer-events:none;
   z-index:2;
 }
 .love-letter{
   position:absolute;
-  bottom:clamp(12px, 2.4vw, 22px);
+  bottom:clamp(10px, 2.4vw, 22px);
   left:50%;
   transform:translateX(-50%);
   z-index:4;
   font-family:'Cormorant Garamond', Georgia, serif;
-  font-size:clamp(56px, 10.5vw, 108px);
+  font-size:clamp(46px, 10vw, 106px);
   font-weight:700;
   color:#FFFFFF;
   line-height:1;
-  text-shadow:0 4px 22px rgba(0,0,0,.85), 0 2px 4px rgba(0,0,0,.9);
+  text-shadow:0 4px 20px rgba(0,0,0,.85), 0 2px 4px rgba(0,0,0,.9);
   pointer-events:none;
   letter-spacing:.01em;
   user-select:none;
@@ -570,6 +576,13 @@ body.locked{overflow:hidden}
   *{animation:none!important;transition:none!important}
   .tilt-card{opacity:1!important;transform:none!important;transition:none!important}
 }
+@media (max-width: 480px){
+  .wrap{padding:0 12px 60px;gap:22px}
+  .page-head{padding:32px 12px 18px}
+  .love-body{padding:26px 14px 30px}
+  .love-letter{font-size:clamp(40px, 11vw, 60px);bottom:8px}
+  .details{padding:14px}
+}
 
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.6;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E")}
 </style>
@@ -630,19 +643,19 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
         </div>
         <!-- Center: Couple (Ruth & Elvis - Formal) -->
         <div class="love-col love-col-2">
-          <img src="images/love-v.jpg" alt="Ruth &amp; Elvis" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
+          <img src="images/love-o.jpg" alt="Ruth &amp; Elvis" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">O</span>
         </div>
         <!-- Center: Couple (Ruth & Elvis - Traditional) -->
         <div class="love-col love-col-3">
-          <img src="images/love-e.jpg" alt="Ruth &amp; Elvis in traditional attire" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
+          <img src="images/love-v.jpg" alt="Ruth &amp; Elvis in traditional attire" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">V</span>
         </div>
         <!-- Side: Single (Ruth) -->
         <div class="love-col love-col-4">
-          <img src="images/love-o.jpg" alt="Ruth" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
+          <img src="images/love-e.jpg" alt="Ruth" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">E</span>
         </div>
