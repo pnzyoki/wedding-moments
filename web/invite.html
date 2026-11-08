@@ -6,10 +6,10 @@
 <title>Wedding Invitation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="image" href="images/love-l.jpg" fetchpriority="high">
-<link rel="preload" as="image" href="images/love-o.jpg" fetchpriority="high">
-<link rel="preload" as="image" href="images/love-v.jpg" fetchpriority="high">
-<link rel="preload" as="image" href="images/love-e.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="images/panel-l.jpg?v=20261108" fetchpriority="high">
+<link rel="preload" as="image" href="images/panel-o.jpg?v=20261108" fetchpriority="high">
+<link rel="preload" as="image" href="images/panel-v.jpg?v=20261108" fetchpriority="high">
+<link rel="preload" as="image" href="images/panel-e.jpg?v=20261108" fetchpriority="high">
 <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Pinyon+Script&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -171,7 +171,8 @@ body.locked{overflow:hidden}
 }
 .love-grid{
   display:grid;
-  grid-template-columns:repeat(4, 1fr);
+  grid-template-columns:repeat(4, minmax(0, 1fr));
+  grid-template-rows:1fr;
   gap:2px;
   background:#FFFFFF;
   width:100%;
@@ -180,7 +181,10 @@ body.locked{overflow:hidden}
 .love-col{
   position:relative;
   overflow:hidden;
+  width:100%;
   height:100%;
+  min-width:0;
+  min-height:0;
   display:flex;
   align-items:flex-end;
   justify-content:center;
@@ -550,7 +554,7 @@ body.locked{overflow:hidden}
   .wrap{padding:0 12px 60px;gap:22px}
   .page-head{padding:32px 12px 18px}
   .love-body{padding:26px 14px 30px}
-  .love-letter{font-size:clamp(40px, 11vw, 60px);bottom:8px}
+  .love-letter{font-size:clamp(46px, 12.5vw, 72px);bottom:clamp(5px, 1.8vw, 10px)}
   .details{padding:14px}
 }
 
@@ -607,25 +611,25 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
       <div class="love-grid">
         <!-- Side: Single (Elvis) -->
         <div class="love-col love-col-1">
-          <img src="images/love-l.jpg" alt="Elvis" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
+          <img src="images/panel-l.jpg?v=20261108" alt="Elvis" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">L</span>
         </div>
         <!-- Center: Couple (Ruth & Elvis - Formal) -->
         <div class="love-col love-col-2">
-          <img src="images/love-o.jpg" alt="Ruth &amp; Elvis" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
+          <img src="images/panel-o.jpg?v=20261108" alt="Ruth &amp; Elvis" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">O</span>
         </div>
         <!-- Center: Couple (Ruth & Elvis - Traditional) -->
         <div class="love-col love-col-3">
-          <img src="images/love-v.jpg" alt="Ruth &amp; Elvis in traditional attire" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
+          <img src="images/panel-v.jpg?v=20261108" alt="Ruth &amp; Elvis in traditional attire" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">V</span>
         </div>
         <!-- Side: Single (Ruth) -->
         <div class="love-col love-col-4">
-          <img src="images/love-e.jpg" alt="Ruth" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
+          <img src="images/panel-e.jpg?v=20261108" alt="Ruth" class="love-img" loading="eager" fetchpriority="high" decoding="async" />
           <div class="love-overlay" aria-hidden="true"></div>
           <span class="love-letter" aria-hidden="true">E</span>
         </div>
@@ -772,7 +776,7 @@ const setAlert = (id, text) => { $(id).textContent = text; };
 // ---------- Event details: replace with the real details ----------
 const INVITE = {
   couple: ['Ruth', 'Elvis'],
-  photo: 'images/love-v.jpg',   // couple's photo URL
+  photo: 'images/panel-v.jpg?v=20261108',   // couple's photo URL
   hosts: 'Together with their parents, Mr & Mrs Joseph Nzyoki and Mr & Mrs David Kiamba, Ruth and Elvis invite you to celebrate the beginning of their marriage.',
   date: '2026-11-14',           // wedding day (YYYY-MM-DD)
   time: '10:00 AM',             // start time

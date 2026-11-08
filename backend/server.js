@@ -202,7 +202,7 @@ const STATIC_CACHE_OPTS = {
   maxAge: '1h',
   setHeaders: (res, filePath) => {
     if (/\.(jpg|jpeg|png|webp|gif|svg|ico)$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, immutable');
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, must-revalidate');
     } else if (/\.(css|js|woff2|woff|ttf)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800');
     } else if (/\.html$/i.test(filePath)) {
