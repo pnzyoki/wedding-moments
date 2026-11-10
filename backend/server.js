@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { QUOTES } from './quotes.js';
 import * as db from './db.js';
+import * as gdrive from './gdrive.js';
 
 // Security headers middleware
 function securityHeaders(req, res, next) {
@@ -373,6 +374,26 @@ app.post('/api/photos', requireGuest, upload.single('photo'), async (req, res) =
       status,
       limit: LIMITS.photos
     });
+
+    // Automatic background backup to personal Google Drive folder
+    if (gdrive.isGoogleDriveConfigured()) {
+      const ext = path.extname(filename);
+      const safeAuthor = (author || 'guest').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 24);
+      const gdriveFilename = `${safeAuthor}_${id.slice(0, 8)}${ext}`;
+      gdrive.uploadToGoogleDrive({
+        buffer: req.file.buffer,
+        filename: gdriveFilename,
+        mimetype: req.file.mimetype,
+        author
+      }).then(driveRes => {
+        if (driveRes?.gdriveFileId) {
+          console.log(`[Google Drive] Saved photo ${id} to Google Drive: ${driveRes.gdriveFileId}`);
+        }
+      }).catch(driveErr => {
+        console.warn(`[Google Drive] Backup error for photo ${id}:`, driveErr.message);
+      });
+    }
+
     res.status(201).json({ id, status, author, url: fileUrl });
   } catch (err) {
     if (err.limit) return res.status(409).json({ error: `You have used all ${LIMITS.photos} photos.` });
@@ -584,6 +605,59 @@ app.post('/api/admin/settings/regenerate-display-token', requireAdmin, async (_r
   const token = newToken().slice(0, 16);
   await db.putSetting('display_token', token);
   res.json({ displayToken: token });
+});
+
+// Google Drive Status
+app.get('/api/admin/gdrive', requireAdmin, async (_req, res) => {
+  try {
+    const status = await gdrive.getGoogleDriveStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ configured: false, error: err.message });
+  }
+});
+
+// Sync approved photos to Google Drive
+app.post('/api/admin/gdrive/sync', requireAdmin, async (_req, res) => {
+  if (!gdrive.isGoogleDriveConfigured()) {
+    return res.status(400).json({ error: 'Google Drive is not configured. Please set the environment variables.' });
+  }
+
+  try {
+    const photos = await db.getApprovedPhotos();
+    let synced = 0;
+    let failed = 0;
+
+    for (const p of photos) {
+      try {
+        const parts = (p.rawUrl || p.url).split('/');
+        const rawFilename = decodeURIComponent(parts[parts.length - 1].split('?')[0]);
+        const buf = await db.downloadPhotoFile(rawFilename);
+        if (buf) {
+          const ext = path.extname(rawFilename).toLowerCase() || '.jpg';
+          const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+          const safeAuthor = (p.author || 'guest').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 24);
+          const gdriveFilename = `${safeAuthor}_${p.id.slice(0, 8)}${ext}`;
+
+          await gdrive.uploadToGoogleDrive({
+            buffer: buf,
+            filename: gdriveFilename,
+            mimetype: mime,
+            author: p.author
+          });
+          synced++;
+        }
+      } catch (err) {
+        console.warn(`[Google Drive Sync] Failed photo ${p.id}:`, err.message);
+        failed++;
+      }
+    }
+
+    res.json({ ok: true, total: photos.length, synced, failed });
+  } catch (err) {
+    console.error('[Google Drive Sync error]:', err);
+    res.status(500).json({ error: 'Sync failed: ' + err.message });
+  }
 });
 
 // Export all data

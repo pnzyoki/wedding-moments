@@ -6,7 +6,7 @@
   "description": "Ruth & Elvis Wedding Moments - Invitation, Guest Wall, and Venue Display",
   "scripts": {
     "start": "node backend/server.js",
-    "check": "node --check backend/server.js && node --check backend/quotes.js && node --check backend/db.js"
+    "check": "node --check backend/server.js && node --check backend/quotes.js && node --check backend/db.js && node --check backend/gdrive.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

@@ -296,6 +296,37 @@ td.num{font-variant-numeric:tabular-nums}
         </div>
       </div>
 
+      <div class="field" style="margin-top:24px;background:#FAF8F5;border:1px solid var(--line);border-radius:14px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <label style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M12 12v9m-4-4 4 4 4-4"/></svg>
+              Google Drive Storage Backup (15 GB Free)
+            </label>
+            <small style="color:var(--muted);font-size:13px;display:block;margin-top:4px" id="gdriveDesc">
+              Automatically stream guest photo uploads to your personal Google Drive folder.
+            </small>
+          </div>
+          <div id="gdriveBadge" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;background:#EAE6E1;color:#6C615A">
+            Checking status...
+          </div>
+        </div>
+
+        <div id="gdriveActions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <a id="gdriveFolderBtn" href="#" target="_blank" rel="noopener" class="btn small sage hide" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+            Open Google Drive Folder &#8599;
+          </a>
+          <button id="gdriveSyncBtn" class="ghost small hide">Sync Existing Photos to Drive</button>
+        </div>
+
+        <div id="gdriveNotice" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.5;background:#FFF;padding:12px 14px;border-radius:10px;border:1px solid var(--line)">
+          <strong>Setup Instructions:</strong> In your Vercel project environment variables (or <code>.env</code>), configure:
+          <br>1. <code>GOOGLE_SERVICE_ACCOUNT_EMAIL</code>
+          <br>2. <code>GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY</code>
+          <br>3. <code>GOOGLE_DRIVE_FOLDER_ID</code> (shared with your service account email with <em>Editor</em> permission)
+        </div>
+      </div>
+
       <div class="field" style="margin-top:24px">
         <label>Download & Export All Media</label>
         <div class="toolbar" style="margin:8px 0 0;gap:12px">
@@ -714,6 +745,71 @@ async function loadSettings() {
   } catch (err) {
     console.warn('Settings load error', err);
   }
+  loadGoogleDriveStatus();
+}
+
+async function loadGoogleDriveStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/gdrive`, { headers: authHeader() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const badge = $('gdriveBadge');
+    const folderBtn = $('gdriveFolderBtn');
+    const syncBtn = $('gdriveSyncBtn');
+    const desc = $('gdriveDesc');
+
+    if (data.configured && data.accessible) {
+      badge.textContent = 'Connected';
+      badge.style.background = '#E3EBDC';
+      badge.style.color = 'var(--sage-deep)';
+      desc.textContent = `Connected to Google Drive folder: "${data.folderName || 'Wedding Photos'}"`;
+      if (data.folderLink) {
+        folderBtn.href = data.folderLink;
+        folderBtn.classList.remove('hide');
+      }
+      syncBtn.classList.remove('hide');
+    } else if (data.configured && !data.accessible) {
+      badge.textContent = 'Access Error';
+      badge.style.background = '#F9EBEB';
+      badge.style.color = 'var(--burg)';
+      desc.textContent = `Folder inaccessible: ${data.error || 'Please share folder with service account email.'}`;
+      folderBtn.classList.add('hide');
+      syncBtn.classList.add('hide');
+    } else {
+      badge.textContent = 'Not Configured';
+      badge.style.background = '#EAE6E1';
+      badge.style.color = '#736760';
+      folderBtn.classList.add('hide');
+      syncBtn.classList.add('hide');
+    }
+  } catch (err) {
+    console.warn('Google Drive status check error', err);
+  }
+}
+
+if ($('gdriveSyncBtn')) {
+  $('gdriveSyncBtn').onclick = async () => {
+    if (!confirm('Sync all existing approved photos to your Google Drive folder?')) return;
+    $('gdriveSyncBtn').disabled = true;
+    $('gdriveSyncBtn').textContent = 'Syncing...';
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/gdrive/sync`, {
+        method: 'POST',
+        headers: authHeader()
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast(`Synced ${data.synced} photo(s) to Google Drive!`);
+      } else {
+        toast(data.error || 'Sync failed', true);
+      }
+    } catch (e) {
+      toast('Error syncing to Google Drive.', true);
+    } finally {
+      $('gdriveSyncBtn').disabled = false;
+      $('gdriveSyncBtn').textContent = 'Sync Existing Photos to Drive';
+    }
+  };
 }
 
 async function updateSetting(field, value) {
